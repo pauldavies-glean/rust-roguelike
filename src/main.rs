@@ -1,6 +1,5 @@
+use bevy_ecs::prelude::*;
 use rltk::{GameState, Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
-use specs_derive::Component;
 use std::cmp::{max, min};
 
 #[derive(Component)]
@@ -23,31 +22,8 @@ struct LeftMover {}
 struct Player {}
 
 struct State {
-    ecs: World,
-}
-
-fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
-    let mut positions = ecs.write_storage::<Position>();
-    let mut players = ecs.write_storage::<Player>();
-
-    for (_player, pos) in (&mut players, &mut positions).join() {
-        pos.x = min(79, max(0, pos.x + delta_x));
-        pos.y = min(49, max(0, pos.y + delta_y));
-    }
-}
-
-fn player_input(gs: &mut State, ctx: &mut Rltk) {
-    // Player movement
-    match ctx.key {
-        None => {} // Nothing happened
-        Some(key) => match key {
-            VirtualKeyCode::Left => try_move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::Right => try_move_player(1, 0, &mut gs.ecs),
-            VirtualKeyCode::Up => try_move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::Down => try_move_player(0, 1, &mut gs.ecs),
-            _ => {}
-        },
-    }
+    world: World,
+    schedule: Schedule,
 }
 
 impl GameState for State {
@@ -55,37 +31,42 @@ impl GameState for State {
         ctx.cls();
 
         player_input(self, ctx);
-        self.run_systems();
+        self.schedule.run(&mut self.world);
 
-        let positions = self.ecs.read_storage::<Position>();
-        let renderables = self.ecs.read_storage::<Renderable>();
-
-        for (pos, render) in (&positions, &renderables).join() {
+        let mut query = self.world.query::<(&Position, &Renderable)>();
+        for (pos, render) in query.iter(&self.world) {
             ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
         }
     }
 }
 
-struct LeftWalker {}
-
-impl<'a> System<'a> for LeftWalker {
-    type SystemData = (ReadStorage<'a, LeftMover>, WriteStorage<'a, Position>);
-
-    fn run(&mut self, (lefty, mut pos): Self::SystemData) {
-        for (_lefty, pos) in (&lefty, &mut pos).join() {
-            pos.x -= 1;
-            if pos.x < 0 {
-                pos.x = 79;
-            }
+fn left_walker_system(mut query: Query<(&mut Position, &LeftMover)>) {
+    for (mut pos, _left) in &mut query {
+        pos.x -= 1;
+        if pos.x < 0 {
+            pos.x = 79;
         }
     }
 }
 
-impl State {
-    fn run_systems(&mut self) {
-        let mut lw = LeftWalker {};
-        lw.run_now(&self.ecs);
-        self.ecs.maintain();
+fn try_move_player(delta_x: i32, delta_y: i32, world: &mut World) {
+    let mut query = world.query::<(&mut Position, &Player)>();
+    for (mut pos, _player) in query.iter_mut(world) {
+        pos.x = min(79, max(0, pos.x + delta_x));
+        pos.y = min(49, max(0, pos.y + delta_y));
+    }
+}
+
+fn player_input(state: &mut State, context: &mut Rltk) {
+    match context.key {
+        None => {}
+        Some(key) => match key {
+            VirtualKeyCode::Left => try_move_player(-1, 0, &mut state.world),
+            VirtualKeyCode::Right => try_move_player(1, 0, &mut state.world),
+            VirtualKeyCode::Up => try_move_player(0, -1, &mut state.world),
+            VirtualKeyCode::Down => try_move_player(0, 1, &mut state.world),
+            _ => {}
+        },
     }
 }
 
@@ -94,35 +75,35 @@ fn main() -> rltk::BError {
     let context = RltkBuilder::simple80x50()
         .with_title("Roguelike Tutorial")
         .build()?;
-    let mut gs = State { ecs: World::new() };
-    gs.ecs.register::<Position>();
-    gs.ecs.register::<Renderable>();
-    gs.ecs.register::<LeftMover>();
-    gs.ecs.register::<Player>();
 
-    gs.ecs
-        .create_entity()
-        .with(Position { x: 40, y: 25 })
-        .with(Renderable {
+    let mut state = State {
+        world: World::new(),
+        schedule: Schedule::default(),
+    };
+
+    state.world.spawn((
+        Position { x: 40, y: 25 },
+        Renderable {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
-        })
-        .with(Player {})
-        .build();
+        },
+        Player {},
+    ));
 
     for i in 0..10 {
-        gs.ecs
-            .create_entity()
-            .with(Position { x: i * 7, y: 20 })
-            .with(Renderable {
+        state.world.spawn((
+            Position { x: i * 7, y: 20 },
+            Renderable {
                 glyph: rltk::to_cp437('☺'),
                 fg: RGB::named(rltk::RED),
                 bg: RGB::named(rltk::BLACK),
-            })
-            .with(LeftMover {})
-            .build();
+            },
+            LeftMover {},
+        ));
     }
 
-    rltk::main_loop(context, gs)
+    state.schedule.add_systems(left_walker_system);
+
+    rltk::main_loop(context, state)
 }
