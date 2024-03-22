@@ -12,6 +12,7 @@ pub fn xy_idx(x: i32, y: i32) -> usize {
     (y as usize * 80) + x as usize
 }
 
+type Key = Option<VirtualKeyCode>;
 type Map = Vec<TileType>;
 
 fn new_map() -> Map {
@@ -65,17 +66,16 @@ struct Player {}
 struct State {
     world: World,
     schedule: Schedule,
-    map: Map,
 }
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
-        player_input(self, ctx);
+        self.world.insert_non_send_resource(ctx.key);
         self.schedule.run(&mut self.world);
 
-        draw_map(&self.map, ctx);
+        draw_map(self, ctx);
 
         let mut query = self.world.query::<(&Position, &Renderable)>();
         for (pos, render) in query.iter(&self.world) {
@@ -93,31 +93,35 @@ fn left_walker_system(mut query: Query<(&mut Position, &LeftMover)>) {
     }
 }
 
-fn try_move_player(state: &mut State, delta_x: i32, delta_y: i32) {
-    let mut query = state.world.query::<(&mut Position, &Player)>();
-    for (mut pos, _player) in query.iter_mut(&mut state.world) {
-        let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
-        if state.map[destination_idx] != TileType::Wall {
-            pos.x = min(79, max(0, pos.x + delta_x));
-            pos.y = min(49, max(0, pos.y + delta_y));
-        }
+fn try_move_player(pos: &mut Position, map: &Map, delta_x: i32, delta_y: i32) {
+    let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
+    if map[destination_idx] != TileType::Wall {
+        pos.x = min(79, max(0, pos.x + delta_x));
+        pos.y = min(49, max(0, pos.y + delta_y));
     }
 }
 
-fn player_input(state: &mut State, context: &mut Rltk) {
-    match context.key {
+fn player_input(
+    mut query: Query<&mut Position, With<Player>>,
+    map: NonSend<Map>,
+    key: NonSend<Key>,
+) {
+    let mut binding = query.single_mut();
+    let pos = binding.as_mut();
+    match key.to_owned() {
         None => {}
         Some(key) => match key {
-            VirtualKeyCode::Left => try_move_player(state, -1, 0),
-            VirtualKeyCode::Right => try_move_player(state, 1, 0),
-            VirtualKeyCode::Up => try_move_player(state, 0, -1),
-            VirtualKeyCode::Down => try_move_player(state, 0, 1),
+            VirtualKeyCode::Left => try_move_player(pos, &map, -1, 0),
+            VirtualKeyCode::Right => try_move_player(pos, &map, 1, 0),
+            VirtualKeyCode::Up => try_move_player(pos, &map, 0, -1),
+            VirtualKeyCode::Down => try_move_player(pos, &map, 0, 1),
             _ => {}
         },
     }
 }
 
-fn draw_map(map: &Map, ctx: &mut Rltk) {
+fn draw_map(state: &State, ctx: &mut Rltk) {
+    let map = state.world.non_send_resource::<Map>();
     let mut y = 0;
     let mut x = 0;
     for tile in map.iter() {
@@ -159,10 +163,12 @@ fn main() -> rltk::BError {
         .build()?;
 
     let mut state = State {
-        map: new_map(),
         world: World::new(),
         schedule: Schedule::default(),
     };
+
+    let map = new_map();
+    state.world.insert_non_send_resource(map);
 
     state.world.spawn((
         Position { x: 40, y: 25 },
@@ -186,7 +192,9 @@ fn main() -> rltk::BError {
         ));
     }
 
-    state.schedule.add_systems(left_walker_system);
+    state
+        .schedule
+        .add_systems((player_input, left_walker_system));
 
     rltk::main_loop(context, state)
 }
