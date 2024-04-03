@@ -14,8 +14,5 @@ pub struct Renderable {
     pub bg: RGB,
 }
 
-#[derive(Component)]
-pub struct LeftMover {}
-
 #[derive(Component, Debug)]
 pub struct Player {}

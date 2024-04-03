@@ -1,9 +1,11 @@
 mod components;
 mod map;
 mod player;
+mod rect;
 pub use components::*;
 pub use map::*;
 pub use player::*;
+pub use rect::*;
 
 use bevy_ecs::prelude::*;
 use rltk::{GameState, Rltk, RGB};
@@ -20,20 +22,11 @@ impl GameState for State {
         self.world.insert_non_send_resource(ctx.key);
         self.schedule.run(&mut self.world);
 
-        draw_map(self.world.non_send_resource::<Map>(), ctx);
+        draw_map(self.world.non_send_resource::<Tiles>(), ctx);
 
         let mut query = self.world.query::<(&Position, &Renderable)>();
         for (pos, render) in query.iter(&self.world) {
             ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
-        }
-    }
-}
-
-fn left_walker_system(mut query: Query<(&mut Position, &LeftMover)>) {
-    for (mut pos, _left) in &mut query {
-        pos.x -= 1;
-        if pos.x < 0 {
-            pos.x = 79;
         }
     }
 }
@@ -49,11 +42,16 @@ fn main() -> rltk::BError {
         schedule: Schedule::default(),
     };
 
-    let map = new_map();
+    let (rooms, map) = new_map_rooms_and_corridors();
     state.world.insert_non_send_resource(map);
 
+    let (player_x, player_y) = rooms[0].center();
+
     state.world.spawn((
-        Position { x: 40, y: 25 },
+        Position {
+            x: player_x,
+            y: player_y,
+        },
         Renderable {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
@@ -62,21 +60,7 @@ fn main() -> rltk::BError {
         Player {},
     ));
 
-    for i in 0..10 {
-        state.world.spawn((
-            Position { x: i * 7, y: 20 },
-            Renderable {
-                glyph: rltk::to_cp437('☺'),
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-            },
-            LeftMover {},
-        ));
-    }
-
-    state
-        .schedule
-        .add_systems((player_input, left_walker_system));
+    state.schedule.add_systems(player_input);
 
     rltk::main_loop(context, state)
 }
