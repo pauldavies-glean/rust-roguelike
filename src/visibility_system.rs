@@ -1,19 +1,19 @@
-use crate::{Map, Player, Position, Viewshed};
+use crate::{AsPoint, Map, Player, Position, Viewshed};
 use bevy_ecs::prelude::*;
-use rltk::{field_of_view, Point};
+use rltk::field_of_view;
 
 pub fn visibility_system(
-    mut query: Query<(&Position, &mut Viewshed, Option<&Player>)>,
+    mut viewers: Query<(&Position, &mut Viewshed, Option<&Player>)>,
     mut map: NonSendMut<Map>,
 ) {
-    for (pos, mut viewshed, player) in query.iter_mut() {
+    for (pos, mut viewshed, player) in viewers.iter_mut() {
         if !viewshed.dirty {
             continue;
         };
 
         viewshed.dirty = false;
         viewshed.visible_tiles.clear();
-        viewshed.visible_tiles = field_of_view(Point::new(pos.x, pos.y), viewshed.range, &*map);
+        viewshed.visible_tiles = field_of_view(pos.as_point(), viewshed.range, &*map);
         viewshed.visible_tiles.retain(|p| map.contains_point(*p));
 
         // Reveal player sight

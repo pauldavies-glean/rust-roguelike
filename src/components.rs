@@ -7,6 +7,19 @@ pub struct Position {
     pub y: i32,
 }
 
+pub(crate) trait AsPoint {
+    fn as_point(&self) -> Point;
+}
+
+impl AsPoint for Position {
+    fn as_point(&self) -> Point {
+        Point {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: FontCharType,
@@ -22,4 +35,12 @@ pub struct Viewshed {
     pub visible_tiles: Vec<Point>,
     pub range: i32,
     pub dirty: bool,
+}
+
+#[derive(Component, Debug)]
+pub struct Monster {}
+
+#[derive(Component, Debug)]
+pub struct Name {
+    pub name: String,
 }
