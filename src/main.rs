@@ -1,41 +1,62 @@
 mod components;
+mod damage_system;
 mod map;
+mod map_indexing_system;
+mod melee_combat_system;
 mod monster_ai_system;
 mod player;
 mod rect;
 mod visibility_system;
 pub use components::*;
+pub use damage_system::*;
 pub use map::*;
+pub use map_indexing_system::*;
+pub use melee_combat_system::*;
 pub use monster_ai_system::*;
 pub use player::*;
 pub use rect::*;
 pub use visibility_system::*;
 
 use bevy_ecs::prelude::*;
-use rltk::{GameState, Rltk, VirtualKeyCode, RGB};
+use rltk::{
+    main_loop, to_cp437, BError, FontCharType, GameState, RandomNumberGenerator, Rltk, RltkBuilder,
+    VirtualKeyCode, BLACK, RED, RGB, YELLOW,
+};
 
 struct State {
     world: World,
     schedule: Schedule,
 }
 
-#[derive(Default)]
-pub struct GameTime {
-    time: u32,
-}
-
 pub type Key = Option<VirtualKeyCode>;
+
+#[derive(PartialEq, Copy, Clone, Resource)]
+pub enum RunState {
+    AwaitingInput,
+    PreRun,
+    PlayerTurn,
+    MonsterTurn,
+}
 
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
+        let state = *self.world.resource::<RunState>();
+        let new_state = match state {
+            RunState::PlayerTurn => RunState::MonsterTurn,
+            _ => RunState::AwaitingInput,
+        };
+
         self.world.insert_non_send_resource::<Key>(ctx.key);
         self.schedule.run(&mut self.world);
+        if *self.world.resource::<RunState>() == state {
+            self.world.insert_resource(new_state);
+        }
 
         let mut query = self.world.query::<(&Position, &Renderable)>();
 
-        let map = self.world.non_send_resource::<Map>();
+        let map = self.world.resource::<Map>();
         draw_map(map, ctx);
 
         for (pos, render) in query.iter(&self.world) {
@@ -47,8 +68,7 @@ impl GameState for State {
     }
 }
 
-fn main() -> rltk::BError {
-    use rltk::RltkBuilder;
+fn main() -> BError {
     let context = RltkBuilder::simple80x50()
         .with_title("Roguelike Tutorial")
         .build()?;
@@ -64,9 +84,9 @@ fn main() -> rltk::BError {
             y: player_y,
         },
         Renderable {
-            glyph: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
+            glyph: to_cp437('@'),
+            fg: RGB::named(YELLOW),
+            bg: RGB::named(BLACK),
         },
         Player {},
         Name {
@@ -77,24 +97,30 @@ fn main() -> rltk::BError {
             range: 8,
             dirty: true,
         },
+        CombatStats {
+            max_hp: 30,
+            hp: 30,
+            defense: 2,
+            power: 5,
+        },
     ));
 
-    let mut rng = rltk::RandomNumberGenerator::new();
+    let mut rng = RandomNumberGenerator::new();
 
     // don't put a monster where the player is!
     for (i, room) in map.rooms.iter().skip(1).enumerate() {
         let (x, y) = room.center();
 
-        let glyph: rltk::FontCharType;
+        let glyph: FontCharType;
         let name: String;
         let roll = rng.roll_dice(1, 2);
         match roll {
             1 => {
-                glyph = rltk::to_cp437('g');
+                glyph = to_cp437('g');
                 name = "Goblin".to_string();
             }
             _ => {
-                glyph = rltk::to_cp437('o');
+                glyph = to_cp437('o');
                 name = "Orc".to_string();
             }
         }
@@ -103,8 +129,8 @@ fn main() -> rltk::BError {
             Position { x, y },
             Renderable {
                 glyph,
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
+                fg: RGB::named(RED),
+                bg: RGB::named(BLACK),
             },
             Viewshed {
                 visible_tiles: Vec::new(),
@@ -115,20 +141,32 @@ fn main() -> rltk::BError {
             Name {
                 name: format!("{} #{}", &name, i),
             },
+            BlocksTile {},
+            CombatStats {
+                max_hp: 16,
+                hp: 16,
+                defense: 1,
+                power: 4,
+            },
         ));
     }
 
-    world.insert_non_send_resource(map);
-    world.insert_non_send_resource(GameTime { time: 0 });
+    world.insert_resource(map);
+    world.insert_resource(RunState::PreRun);
 
     let mut state = State {
         world,
         schedule: Schedule::default(),
     };
 
-    state
-        .schedule
-        .add_systems((player_input_system, visibility_system, monster_ai_system));
+    state.schedule.add_systems((
+        player_input_system,
+        visibility_system,
+        monster_ai_system,
+        melee_combat_system,
+        damage_system,
+        map_indexing_system,
+    ));
 
-    rltk::main_loop(context, state)
+    main_loop(context, state)
 }

@@ -1064,6 +1064,7 @@ name = "hellorust"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
+ "lazy_static",
  "rltk",
 ]
 

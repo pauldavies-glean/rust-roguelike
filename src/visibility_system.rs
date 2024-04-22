@@ -4,7 +4,7 @@ use rltk::field_of_view;
 
 pub fn visibility_system(
     mut viewers: Query<(&Position, &mut Viewshed, Option<&Player>)>,
-    mut map: NonSendMut<Map>,
+    mut map: ResMut<Map>,
 ) {
     for (pos, mut viewshed, player) in viewers.iter_mut() {
         if !viewshed.dirty {

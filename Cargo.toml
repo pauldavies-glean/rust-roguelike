@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rltk = { version = "0.8.0" }
 bevy_ecs = "0.13.0"
+lazy_static = "1.4.0"
