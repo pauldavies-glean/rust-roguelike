@@ -1,23 +1,15 @@
+mod ai;
+mod combat;
 mod components;
-mod damage_system;
+mod damage;
 mod map;
-mod map_indexing_system;
-mod melee_combat_system;
-mod monster_ai_system;
 mod player;
 mod rect;
-mod visibility_system;
-pub use components::*;
-pub use damage_system::*;
-pub use map::*;
-pub use map_indexing_system::*;
-pub use melee_combat_system::*;
-pub use monster_ai_system::*;
-pub use player::*;
-pub use rect::*;
-pub use visibility_system::*;
+mod visibility;
 
 use bevy_ecs::prelude::*;
+use components::{BlocksTile, CombatStats, Monster, Name, Player, Position, Renderable, Viewshed};
+use map::Map;
 use rltk::{
     main_loop, to_cp437, BError, FontCharType, GameState, RandomNumberGenerator, Rltk, RltkBuilder,
     VirtualKeyCode, BLACK, RED, RGB, YELLOW,
@@ -57,7 +49,7 @@ impl GameState for State {
         let mut query = self.world.query::<(&Position, &Renderable)>();
 
         let map = self.world.resource::<Map>();
-        draw_map(map, ctx);
+        map.draw(ctx);
 
         for (pos, render) in query.iter(&self.world) {
             let idx = map.xy_idx(pos.x, pos.y);
@@ -160,12 +152,12 @@ fn main() -> BError {
     };
 
     state.schedule.add_systems((
-        player_input_system,
-        visibility_system,
-        monster_ai_system,
-        melee_combat_system,
-        damage_system,
-        map_indexing_system,
+        player::player_input_system,
+        visibility::visibility_system,
+        ai::monster_ai_system,
+        combat::melee_combat_system,
+        damage::damage_system,
+        map::map_indexing_system,
     ));
 
     main_loop(context, state)

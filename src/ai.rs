@@ -1,7 +1,11 @@
 use bevy_ecs::prelude::*;
 use rltk::{a_star_search, DistanceAlg, Point};
 
-use crate::{AsPoint, Map, Monster, Player, Position, RunState, Viewshed, WantsToMelee};
+use crate::{
+    components::{AsPoint, Monster, Player, Position, Viewshed, WantsToMelee},
+    map::Map,
+    RunState,
+};
 
 pub fn monster_ai_system(
     mut commands: Commands,

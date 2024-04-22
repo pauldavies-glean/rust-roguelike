@@ -1,6 +1,10 @@
-use crate::{AsPoint, Map, Player, Position, Viewshed};
 use bevy_ecs::prelude::*;
 use rltk::field_of_view;
+
+use crate::{
+    components::{AsPoint, Player, Position, Viewshed},
+    map::Map,
+};
 
 pub fn visibility_system(
     mut viewers: Query<(&Position, &mut Viewshed, Option<&Player>)>,

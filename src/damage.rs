@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use rltk::console;
 
-use crate::{CombatStats, Name, Player, SufferDamage};
+use crate::components::{CombatStats, Name, Player, SufferDamage};
 
 pub fn damage_system(
     mut commands: Commands,

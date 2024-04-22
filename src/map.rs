@@ -1,9 +1,13 @@
-use super::Rect;
 use bevy_ecs::prelude::*;
 use rltk::{
     to_cp437, Algorithm2D, BaseMap, DistanceAlg, Point, RandomNumberGenerator, Rltk, SmallVec, RGB,
 };
 use std::cmp::{max, min};
+
+use crate::{
+    components::{BlocksTile, Position},
+    rect::Rect,
+};
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
@@ -132,6 +136,37 @@ impl Map {
         let idx = self.xy_idx(x, y);
         !self.blocked[idx]
     }
+
+    pub fn draw(&self, ctx: &mut Rltk) {
+        let mut y = 0;
+        let mut x = 0;
+        for (idx, tile) in self.tiles.iter().enumerate() {
+            if self.revealed_tiles[idx] {
+                let glyph;
+                let mut fg;
+                match tile {
+                    TileType::Floor => {
+                        glyph = to_cp437('.');
+                        fg = RGB::from_f32(0.0, 0.5, 0.5);
+                    }
+                    TileType::Wall => {
+                        glyph = to_cp437('#');
+                        fg = RGB::from_f32(0., 1.0, 0.);
+                    }
+                }
+                if !self.visible_tiles[idx] {
+                    fg = fg.to_greyscale()
+                }
+                ctx.set(x, y, fg, RGB::from_f32(0., 0., 0.), glyph);
+            }
+            // Move the coordinates
+            x += 1;
+            if x >= self.width {
+                x = 0;
+                y += 1;
+            }
+        }
+    }
 }
 
 impl BaseMap for Map {
@@ -190,33 +225,19 @@ impl Algorithm2D for Map {
     }
 }
 
-pub fn draw_map(map: &Map, ctx: &mut Rltk) {
-    let mut y = 0;
-    let mut x = 0;
-    for (idx, tile) in map.tiles.iter().enumerate() {
-        if map.revealed_tiles[idx] {
-            let glyph;
-            let mut fg;
-            match tile {
-                TileType::Floor => {
-                    glyph = to_cp437('.');
-                    fg = RGB::from_f32(0.0, 0.5, 0.5);
-                }
-                TileType::Wall => {
-                    glyph = to_cp437('#');
-                    fg = RGB::from_f32(0., 1.0, 0.);
-                }
-            }
-            if !map.visible_tiles[idx] {
-                fg = fg.to_greyscale()
-            }
-            ctx.set(x, y, fg, RGB::from_f32(0., 0., 0.), glyph);
+pub fn map_indexing_system(
+    entities: Query<(Entity, &Position, Option<&BlocksTile>)>,
+    mut map: ResMut<Map>,
+) {
+    map.populate_blocked();
+    map.clear_content_index();
+    for (entity, position, blocks) in entities.iter() {
+        let idx = map.xy_idx(position.x, position.y);
+
+        if blocks.is_some() {
+            map.blocked[idx] = true;
         }
-        // Move the coordinates
-        x += 1;
-        if x >= map.width {
-            x = 0;
-            y += 1;
-        }
+
+        map.tile_content[idx].push(entity);
     }
 }

@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use rltk::console;
 
-use crate::{CombatStats, Name, SufferDamage, WantsToMelee};
+use crate::components::{CombatStats, Name, SufferDamage, WantsToMelee};
 
 pub fn melee_combat_system(
     mut commands: Commands,

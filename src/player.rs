@@ -5,7 +5,12 @@ use rltk::VirtualKeyCode;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 
-use crate::{CombatStats, Key, Map, Player, Position, RunState, Viewshed, WantsToMelee};
+use crate::components::{Player, WantsToMelee};
+use crate::{
+    components::{CombatStats, Position, Viewshed},
+    map::Map,
+};
+use crate::{Key, RunState};
 
 fn try_move_player(
     mut commands: EntityCommands,
