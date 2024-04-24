@@ -1,7 +1,9 @@
 use bevy_ecs::prelude::*;
-use rltk::console;
 
-use crate::components::{CombatStats, Name, SufferDamage, WantsToMelee};
+use crate::{
+    components::{CombatStats, Name, SufferDamage, WantsToMelee},
+    gamelog::GameLog,
+};
 
 pub fn melee_combat_system(
     mut commands: Commands,
@@ -9,6 +11,7 @@ pub fn melee_combat_system(
     combatants: Query<&CombatStats>,
     mut sufferers: Query<&mut SufferDamage>,
     names: Query<&Name>,
+    mut log: ResMut<GameLog>,
 ) {
     for (attacker, wants_melee, name, stats) in attackers.iter_mut() {
         let victim = wants_melee.target;
@@ -18,12 +21,12 @@ pub fn melee_combat_system(
 
             let damage = stats.power - target_stats.defense;
             if damage <= 0 {
-                console::log(&format!(
+                log.entries.push(format!(
                     "{} is unable to hurt {}",
                     &name.name, &target_name.name
                 ));
             } else {
-                console::log(&format!(
+                log.entries.push(format!(
                     "{} hits {}, for {} hp.",
                     &name.name, &target_name.name, damage
                 ));

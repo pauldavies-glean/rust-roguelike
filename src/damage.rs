@@ -1,7 +1,9 @@
 use bevy_ecs::prelude::*;
-use rltk::console;
 
-use crate::components::{CombatStats, Name, Player, SufferDamage};
+use crate::{
+    components::{CombatStats, Name, Player, SufferDamage},
+    gamelog::GameLog,
+};
 
 pub fn damage_system(
     mut commands: Commands,
@@ -12,6 +14,7 @@ pub fn damage_system(
         &SufferDamage,
         Option<&Player>,
     )>,
+    mut log: ResMut<GameLog>,
 ) {
     for (victim, mut stats, name, damage, player) in victims.iter_mut() {
         stats.hp -= damage.amount.iter().sum::<i32>();
@@ -20,9 +23,9 @@ pub fn damage_system(
             match player {
                 None => {
                     commands.entity(victim).despawn();
-                    console::log(&format!("{} dies horribly!", &name.name));
+                    log.entries.push(format!("{} dies horribly!", &name.name));
                 }
-                Some(_) => console::log("ya dead"),
+                Some(_) => log.entries.push("ya dead".to_owned()),
             }
         } else {
             commands.entity(victim).remove::<SufferDamage>();

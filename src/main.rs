@@ -2,6 +2,8 @@ mod ai;
 mod combat;
 mod components;
 mod damage;
+mod gamelog;
+mod gui;
 mod map;
 mod player;
 mod rect;
@@ -9,6 +11,7 @@ mod visibility;
 
 use bevy_ecs::prelude::*;
 use components::{BlocksTile, CombatStats, Monster, Name, Player, Position, Renderable, Viewshed};
+use gamelog::GameLog;
 use map::Map;
 use rltk::{
     main_loop, to_cp437, BError, FontCharType, GameState, RandomNumberGenerator, Rltk, RltkBuilder,
@@ -57,6 +60,8 @@ impl GameState for State {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
             }
         }
+
+        gui::draw_ui(&mut self.world, ctx);
     }
 }
 
@@ -145,6 +150,9 @@ fn main() -> BError {
 
     world.insert_resource(map);
     world.insert_resource(RunState::PreRun);
+    world.insert_resource(GameLog {
+        entries: vec!["Welcome to Rusty Roguelike".to_string()],
+    });
 
     let mut state = State {
         world,
