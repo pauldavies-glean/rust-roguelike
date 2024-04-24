@@ -1,5 +1,5 @@
 use bevy_ecs::{prelude::*, system::EntityCommands};
-use rltk::{FontCharType, Point, RGB};
+use rltk::{FontCharType, Point};
 
 #[derive(Component, Default)]
 pub struct Position {
@@ -23,8 +23,8 @@ impl AsPoint for Position {
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: FontCharType,
-    pub fg: RGB,
-    pub bg: RGB,
+    pub fg: (u8, u8, u8),
+    pub bg: (u8, u8, u8),
 }
 
 #[derive(Component, Debug)]

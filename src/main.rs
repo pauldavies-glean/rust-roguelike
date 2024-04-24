@@ -15,7 +15,7 @@ use gamelog::GameLog;
 use map::Map;
 use rltk::{
     main_loop, to_cp437, BError, FontCharType, GameState, RandomNumberGenerator, Rltk, RltkBuilder,
-    VirtualKeyCode, BLACK, RED, RGB, YELLOW,
+    VirtualKeyCode, BLACK, RED, YELLOW,
 };
 
 struct State {
@@ -82,8 +82,8 @@ fn main() -> BError {
         },
         Renderable {
             glyph: to_cp437('@'),
-            fg: RGB::named(YELLOW),
-            bg: RGB::named(BLACK),
+            fg: YELLOW,
+            bg: BLACK,
         },
         Player {},
         Name {
@@ -126,8 +126,8 @@ fn main() -> BError {
             Position { x, y },
             Renderable {
                 glyph,
-                fg: RGB::named(RED),
-                bg: RGB::named(BLACK),
+                fg: RED,
+                bg: BLACK,
             },
             Viewshed {
                 visible_tiles: Vec::new(),
