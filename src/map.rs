@@ -27,9 +27,9 @@ pub struct Map {
     pub tile_content: Vec<Vec<Entity>>,
 }
 
-const MAPWIDTH: usize = 80;
-const MAPHEIGHT: usize = 50;
-const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
+pub const MAPWIDTH: usize = 80;
+pub const MAPHEIGHT: usize = 43;
+pub const MAPCOUNT: usize = MAPHEIGHT * MAPWIDTH;
 
 impl Map {
     pub fn xy_idx(&self, x: i32, y: i32) -> usize {
@@ -73,8 +73,8 @@ impl Map {
         let mut map = Map {
             tiles: vec![TileType::Wall; MAPCOUNT],
             rooms: Vec::new(),
-            width: 80,
-            height: 50,
+            width: MAPWIDTH as i32,
+            height: MAPHEIGHT as i32,
             revealed_tiles: vec![false; MAPCOUNT],
             visible_tiles: vec![false; MAPCOUNT],
             blocked: vec![false; MAPCOUNT],

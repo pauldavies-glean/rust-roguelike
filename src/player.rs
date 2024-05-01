@@ -5,7 +5,8 @@ use rltk::VirtualKeyCode;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 
-use crate::components::{Player, WantsToMelee};
+use crate::components::{Item, Player, WantsToMelee, WantsToPickupItem};
+use crate::gamelog::GameLog;
 use crate::{
     components::{CombatStats, Position, Viewshed},
     map::Map,
@@ -69,32 +70,82 @@ lazy_static! {
     };
 }
 
+fn get_item(
+    mut commands: EntityCommands,
+    items: Query<(Entity, &Position), With<Item>>,
+    player: Entity,
+    player_pos: &Position,
+    log: &mut GameLog,
+) -> bool {
+    let mut target_item: Option<Entity> = None;
+    for (item_entity, position) in items.iter() {
+        if position.x == player_pos.x && position.y == player_pos.y {
+            target_item = Some(item_entity);
+            break;
+        }
+    }
+
+    match target_item {
+        None => {
+            log.entries
+                .push("There is nothing here to pick up.".to_string());
+            return false;
+        }
+        Some(item) => {
+            commands.insert(WantsToPickupItem {
+                collected_by: player,
+                item,
+            });
+            return true;
+        }
+    }
+}
+
 pub fn player_input_system(
     mut commands: Commands,
-    mut players: Query<(Entity, &mut Position, &mut Viewshed), With<Player>>,
-    enemy_query: Query<&CombatStats>,
+    mut players: Query<(Entity, &mut Position, &mut Viewshed), (With<Player>, Without<Item>)>,
+    enemies: Query<&CombatStats>,
+    items: Query<(Entity, &Position), With<Item>>,
     map: Res<Map>,
     key: NonSend<Key>,
     mut state: ResMut<RunState>,
+    mut log: ResMut<GameLog>,
 ) {
     if *state != RunState::AwaitingInput {
         return;
     }
 
+    let (player, mut pos, mut viewshed) = players.single_mut();
+    let player_commands = commands.entity(player);
+    let mut new_state = RunState::AwaitingInput;
+
     if let Some(k) = *key {
         if let Some(delta) = MOVEMENT_KEYS.get(&k) {
-            let (player, mut pos, mut viewshed) = players.single_mut();
             if try_move_player(
-                commands.entity(player),
-                enemy_query,
+                player_commands,
+                enemies,
                 &mut pos,
                 &mut viewshed,
                 &map,
                 delta.0,
                 delta.1,
             ) {
-                *state = RunState::PlayerTurn;
+                new_state = RunState::PlayerTurn;
+            }
+        } else {
+            match k {
+                VirtualKeyCode::G => {
+                    if get_item(player_commands, items, player, &pos, &mut log) {
+                        new_state = RunState::PlayerTurn;
+                    }
+                }
+                VirtualKeyCode::I => new_state = RunState::ShowInventory,
+                VirtualKeyCode::D => new_state = RunState::ShowDropItem,
+
+                _ => {}
             }
         }
     }
+
+    *state = new_state;
 }

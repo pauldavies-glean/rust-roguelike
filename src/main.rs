@@ -4,18 +4,19 @@ mod components;
 mod damage;
 mod gamelog;
 mod gui;
+mod inventory;
 mod map;
 mod player;
 mod rect;
+mod spawner;
 mod visibility;
 
 use bevy_ecs::prelude::*;
-use components::{BlocksTile, CombatStats, Monster, Name, Player, Position, Renderable, Viewshed};
+use components::{Player, Position, Renderable, WantsToDrinkPotion, WantsToDropItem};
 use gamelog::GameLog;
-use map::Map;
+use map::{Map, MAPCOUNT};
 use rltk::{
-    main_loop, to_cp437, BError, FontCharType, GameState, RandomNumberGenerator, Rltk, RltkBuilder,
-    VirtualKeyCode, BLACK, RED, YELLOW,
+    main_loop, BError, GameState, RandomNumberGenerator, Rltk, RltkBuilder, VirtualKeyCode,
 };
 
 struct State {
@@ -31,6 +32,8 @@ pub enum RunState {
     PreRun,
     PlayerTurn,
     MonsterTurn,
+    ShowInventory,
+    ShowDropItem,
 }
 
 impl GameState for State {
@@ -38,30 +41,77 @@ impl GameState for State {
         ctx.cls();
 
         let state = *self.world.resource::<RunState>();
-        let new_state = match state {
+        let mut new_state = match state {
             RunState::PlayerTurn => RunState::MonsterTurn,
+            RunState::ShowInventory => RunState::ShowInventory,
+            RunState::ShowDropItem => RunState::ShowDropItem,
             _ => RunState::AwaitingInput,
         };
 
         self.world.insert_non_send_resource::<Key>(ctx.key);
         self.schedule.run(&mut self.world);
-        if *self.world.resource::<RunState>() == state {
-            self.world.insert_resource(new_state);
-        }
 
-        let mut query = self.world.query::<(&Position, &Renderable)>();
+        let mut things = self.world.query::<(&Position, &Renderable)>();
 
         let map = self.world.resource::<Map>();
         map.draw(ctx);
 
-        for (pos, render) in query.iter(&self.world) {
+        let mut priority = vec![100; MAPCOUNT];
+        for (pos, render) in things.iter(&self.world) {
             let idx = map.xy_idx(pos.x, pos.y);
-            if map.visible_tiles[idx] {
+            if map.visible_tiles[idx] && priority[idx] > render.render_order {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+                priority[idx] = render.render_order
             }
         }
 
         gui::draw_ui(&mut self.world, ctx);
+
+        if state == RunState::ShowInventory {
+            let (result, item) = gui::show_inventory(&mut self.world, ctx);
+            match result {
+                gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                gui::ItemMenuResult::NoResponse => {}
+                gui::ItemMenuResult::Selected => {
+                    let player_entity = self
+                        .world
+                        .query_filtered::<Entity, With<Player>>()
+                        .single(&self.world);
+
+                    self.world
+                        .entity_mut(player_entity)
+                        .insert(WantsToDrinkPotion {
+                            potion: item.unwrap(),
+                        });
+
+                    new_state = RunState::PlayerTurn;
+                }
+            }
+        } else if state == RunState::ShowDropItem {
+            let (result, item) = gui::drop_menu_item(&mut self.world, ctx);
+            match result {
+                gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                gui::ItemMenuResult::NoResponse => {}
+                gui::ItemMenuResult::Selected => {
+                    let player_entity = self
+                        .world
+                        .query_filtered::<Entity, With<Player>>()
+                        .single(&self.world);
+
+                    self.world
+                        .entity_mut(player_entity)
+                        .insert(WantsToDropItem {
+                            item: item.unwrap(),
+                        });
+
+                    new_state = RunState::PlayerTurn;
+                }
+            }
+        }
+
+        if *self.world.resource::<RunState>() == state {
+            self.world.insert_resource(new_state);
+        }
     }
 }
 
@@ -72,101 +122,43 @@ fn main() -> BError {
 
     let mut world = World::new();
 
-    let map = Map::new_map_rooms_and_corridors();
-    let (player_x, player_y) = map.rooms[0].center();
+    let rng = RandomNumberGenerator::new();
+    world.insert_non_send_resource(rng);
 
-    world.spawn((
-        Position {
-            x: player_x,
-            y: player_y,
-        },
-        Renderable {
-            glyph: to_cp437('@'),
-            fg: YELLOW,
-            bg: BLACK,
-        },
-        Player {},
-        Name {
-            name: "Player".to_string(),
-        },
-        Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
-            dirty: true,
-        },
-        CombatStats {
-            max_hp: 30,
-            hp: 30,
-            defense: 2,
-            power: 5,
-        },
-    ));
-
-    let mut rng = RandomNumberGenerator::new();
-
-    // don't put a monster where the player is!
-    for (i, room) in map.rooms.iter().skip(1).enumerate() {
-        let (x, y) = room.center();
-
-        let glyph: FontCharType;
-        let name: String;
-        let roll = rng.roll_dice(1, 2);
-        match roll {
-            1 => {
-                glyph = to_cp437('g');
-                name = "Goblin".to_string();
-            }
-            _ => {
-                glyph = to_cp437('o');
-                name = "Orc".to_string();
-            }
-        }
-
-        world.spawn((
-            Position { x, y },
-            Renderable {
-                glyph,
-                fg: RED,
-                bg: BLACK,
-            },
-            Viewshed {
-                visible_tiles: Vec::new(),
-                range: 8,
-                dirty: true,
-            },
-            Monster {},
-            Name {
-                name: format!("{} #{}", &name, i),
-            },
-            BlocksTile {},
-            CombatStats {
-                max_hp: 16,
-                hp: 16,
-                defense: 1,
-                power: 4,
-            },
-        ));
-    }
-
-    world.insert_resource(map);
     world.insert_resource(RunState::PreRun);
     world.insert_resource(GameLog {
         entries: vec!["Welcome to Rusty Roguelike".to_string()],
     });
+
+    let map = Map::new_map_rooms_and_corridors();
+    let (player_x, player_y) = map.rooms[0].center();
+    spawner::player(&mut world, player_x, player_y);
+
+    // don't put a monster where the player is!
+    for room in map.rooms.iter().skip(1) {
+        spawner::spawn_room(&mut world, room);
+    }
+    world.insert_resource(map);
 
     let mut state = State {
         world,
         schedule: Schedule::default(),
     };
 
-    state.schedule.add_systems((
-        player::player_input_system,
-        visibility::visibility_system,
-        ai::monster_ai_system,
-        combat::melee_combat_system,
-        damage::damage_system,
-        map::map_indexing_system,
-    ));
+    state.schedule.add_systems(
+        (
+            inventory::potion_use_system,
+            inventory::drop_system,
+            player::player_input_system,
+            inventory::inventory_system,
+            visibility::visibility_system,
+            ai::monster_ai_system,
+            combat::melee_combat_system,
+            damage::damage_system,
+            map::map_indexing_system,
+        )
+            .chain(),
+    );
 
     main_loop(context, state)
 }

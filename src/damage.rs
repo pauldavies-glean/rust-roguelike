@@ -27,8 +27,8 @@ pub fn damage_system(
                 }
                 Some(_) => log.entries.push("ya dead".to_owned()),
             }
-        } else {
-            commands.entity(victim).remove::<SufferDamage>();
         }
+
+        commands.entity(victim).remove::<SufferDamage>();
     }
 }
