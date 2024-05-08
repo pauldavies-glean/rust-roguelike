@@ -12,7 +12,7 @@ mod spawner;
 mod visibility;
 
 use bevy_ecs::prelude::*;
-use components::{Player, Position, Renderable, WantsToDrinkPotion, WantsToDropItem};
+use components::{Player, Position, Ranged, Renderable, WantsToDropItem, WantsToUseItem};
 use gamelog::GameLog;
 use map::{Map, MAPCOUNT};
 use rltk::{
@@ -34,6 +34,7 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
+    ShowTargeting { range: i32, item: Entity },
 }
 
 impl GameState for State {
@@ -45,6 +46,7 @@ impl GameState for State {
             RunState::PlayerTurn => RunState::MonsterTurn,
             RunState::ShowInventory => RunState::ShowInventory,
             RunState::ShowDropItem => RunState::ShowDropItem,
+            RunState::ShowTargeting { range, item } => RunState::ShowTargeting { range, item },
             _ => RunState::AwaitingInput,
         };
 
@@ -67,46 +69,75 @@ impl GameState for State {
 
         gui::draw_ui(&mut self.world, ctx);
 
-        if state == RunState::ShowInventory {
-            let (result, item) = gui::show_inventory(&mut self.world, ctx);
-            match result {
-                gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
-                gui::ItemMenuResult::NoResponse => {}
-                gui::ItemMenuResult::Selected => {
-                    let player_entity = self
-                        .world
-                        .query_filtered::<Entity, With<Player>>()
-                        .single(&self.world);
+        match state {
+            RunState::ShowInventory => {
+                let (result, item) = gui::show_inventory(&mut self.world, ctx);
+                match result {
+                    gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player_entity = self
+                            .world
+                            .query_filtered::<Entity, With<Player>>()
+                            .single(&self.world);
 
-                    self.world
-                        .entity_mut(player_entity)
-                        .insert(WantsToDrinkPotion {
-                            potion: item.unwrap(),
-                        });
+                        let item = item.unwrap();
 
-                    new_state = RunState::PlayerTurn;
+                        if let Some(targeting) = self.world.get::<Ranged>(item) {
+                            new_state = RunState::ShowTargeting {
+                                range: targeting.range,
+                                item,
+                            }
+                        } else {
+                            self.world
+                                .entity_mut(player_entity)
+                                .insert(WantsToUseItem { item, target: None });
+                            new_state = RunState::PlayerTurn;
+                        }
+                    }
                 }
             }
-        } else if state == RunState::ShowDropItem {
-            let (result, item) = gui::drop_menu_item(&mut self.world, ctx);
-            match result {
-                gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
-                gui::ItemMenuResult::NoResponse => {}
-                gui::ItemMenuResult::Selected => {
-                    let player_entity = self
-                        .world
-                        .query_filtered::<Entity, With<Player>>()
-                        .single(&self.world);
+            RunState::ShowDropItem => {
+                let (result, item) = gui::drop_menu_item(&mut self.world, ctx);
+                match result {
+                    gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player_entity = self
+                            .world
+                            .query_filtered::<Entity, With<Player>>()
+                            .single(&self.world);
 
-                    self.world
-                        .entity_mut(player_entity)
-                        .insert(WantsToDropItem {
-                            item: item.unwrap(),
-                        });
+                        self.world
+                            .entity_mut(player_entity)
+                            .insert(WantsToDropItem {
+                                item: item.unwrap(),
+                            });
 
-                    new_state = RunState::PlayerTurn;
+                        new_state = RunState::PlayerTurn;
+                    }
                 }
             }
+            RunState::ShowTargeting { range, item } => {
+                let (result, target) = gui::ranged_target(&mut self.world, ctx, range);
+                match result {
+                    gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player_entity = self
+                            .world
+                            .query_filtered::<Entity, With<Player>>()
+                            .single(&self.world);
+
+                        self.world
+                            .entity_mut(player_entity)
+                            .insert(WantsToUseItem { item, target });
+
+                        new_state = RunState::PlayerTurn;
+                    }
+                }
+            }
+            _ => {}
         }
 
         if *self.world.resource::<RunState>() == state {
@@ -147,7 +178,7 @@ fn main() -> BError {
 
     state.schedule.add_systems(
         (
-            inventory::potion_use_system,
+            inventory::item_use_system,
             inventory::drop_system,
             player::player_input_system,
             inventory::inventory_system,

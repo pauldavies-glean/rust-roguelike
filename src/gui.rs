@@ -1,10 +1,11 @@
 use bevy_ecs::prelude::*;
 use rltk::{
-    to_cp437, FontCharType, Point, Rltk, VirtualKeyCode, BLACK, GREY, MAGENTA, RED, WHITE, YELLOW,
+    to_cp437, DistanceAlg, FontCharType, Point, Rltk, VirtualKeyCode, BLACK, BLUE, CYAN, GREY,
+    MAGENTA, RED, WHITE, YELLOW,
 };
 
 use crate::{
-    components::{CombatStats, InBackpack, Name, Player, Position},
+    components::{AsPoint, CombatStats, InBackpack, Name, Player, Position, Viewshed},
     gamelog::GameLog,
     map::Map,
 };
@@ -197,4 +198,51 @@ pub fn drop_menu_item(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, Opt
             }
         },
     }
+}
+
+pub fn ranged_target(
+    world: &mut World,
+    ctx: &mut Rltk,
+    range: i32,
+) -> (ItemMenuResult, Option<Point>) {
+    let (visible, player_pos) = world
+        .query_filtered::<(&Viewshed, &Position), With<Player>>()
+        .single(world);
+
+    ctx.print_color(5, 0, YELLOW, BLACK, "Select Target:");
+
+    // Highlight available target cells
+    let mut available_cells = Vec::new();
+    for idx in visible.visible_tiles.iter() {
+        let distance = DistanceAlg::Pythagoras.distance2d(player_pos.as_point(), *idx);
+        if distance <= range as f32 {
+            ctx.set_bg(idx.x, idx.y, BLUE);
+            available_cells.push(idx);
+        }
+    }
+
+    // Draw mouse cursor
+    let mouse_pos = ctx.mouse_pos();
+    let mut valid_target = false;
+    for idx in available_cells.iter() {
+        if idx.x == mouse_pos.0 && idx.y == mouse_pos.1 {
+            valid_target = true;
+        }
+    }
+    if valid_target {
+        ctx.set_bg(mouse_pos.0, mouse_pos.1, CYAN);
+        if ctx.left_click {
+            return (
+                ItemMenuResult::Selected,
+                Some(Point::new(mouse_pos.0, mouse_pos.1)),
+            );
+        }
+    } else {
+        ctx.set_bg(mouse_pos.0, mouse_pos.1, RED);
+        if ctx.left_click {
+            return (ItemMenuResult::Cancel, None);
+        }
+    }
+
+    (ItemMenuResult::NoResponse, None)
 }
