@@ -2,6 +2,7 @@ use bevy_ecs::prelude::*;
 use rltk::{
     to_cp437, Algorithm2D, BaseMap, DistanceAlg, Point, RandomNumberGenerator, Rltk, SmallVec, RGB,
 };
+use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
 
 use crate::{
@@ -9,13 +10,13 @@ use crate::{
     rect::Rect,
 };
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Clone)]
 pub enum TileType {
     Wall,
     Floor,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default, Serialize, Deserialize, Clone)]
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub rooms: Vec<Rect>,
@@ -24,6 +25,9 @@ pub struct Map {
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked: Vec<bool>,
+
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     pub tile_content: Vec<Vec<Entity>>,
 }
 

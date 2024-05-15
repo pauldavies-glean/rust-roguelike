@@ -1,7 +1,8 @@
 use bevy_ecs::{prelude::*, system::EntityCommands};
 use rltk::{FontCharType, Point};
+use serde::{Deserialize, Serialize};
 
-#[derive(Component, Default)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -20,7 +21,7 @@ impl AsPoint for Position {
     }
 }
 
-#[derive(Component)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Renderable {
     pub glyph: FontCharType,
     pub fg: (u8, u8, u8),
@@ -28,28 +29,28 @@ pub struct Renderable {
     pub render_order: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug, Clone, Component, Default, Serialize, Deserialize)]
 pub struct Player {}
 
-#[derive(Component)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Viewshed {
     pub visible_tiles: Vec<Point>,
     pub range: i32,
     pub dirty: bool,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug, Clone, Component, Default, Serialize, Deserialize)]
 pub struct Monster {}
 
-#[derive(Component, Debug)]
+#[derive(Debug, Clone, Component, Default, Serialize, Deserialize)]
 pub struct Name {
     pub name: String,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct BlocksTile {}
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct CombatStats {
     pub max_hp: i32,
     pub hp: i32,
@@ -57,12 +58,12 @@ pub struct CombatStats {
     pub power: i32,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component)]
 pub struct WantsToMelee {
     pub target: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 pub struct SufferDamage {
     pub amount: Vec<i32>,
 }
@@ -83,20 +84,20 @@ impl SufferDamage {
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Item {}
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct ProvidesHealing {
     pub heal_amount: i32,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Serialize, Deserialize)]
 pub struct InBackpack {
     pub owner: Entity,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component)]
 pub struct WantsToPickupItem {
     pub collected_by: Entity,
     pub item: Entity,
@@ -113,30 +114,30 @@ pub struct WantsToDropItem {
     pub item: Entity,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Consumable {}
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Ranged {
     pub range: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct InflictsDamage {
     pub damage: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct AreaOfEffect {
     pub radius: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Confusion {
     pub turns: i32,
 }
 
-#[derive(Component, Debug)]
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Confused {
     pub turns: i32,
 }

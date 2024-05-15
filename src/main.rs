@@ -8,8 +8,11 @@ mod inventory;
 mod map;
 mod player;
 mod rect;
+mod saveload;
 mod spawner;
 mod visibility;
+
+extern crate serde;
 
 use bevy_ecs::prelude::*;
 use components::{Player, Position, Ranged, Renderable, WantsToDropItem, WantsToUseItem};
@@ -34,7 +37,14 @@ pub enum RunState {
     MonsterTurn,
     ShowInventory,
     ShowDropItem,
-    ShowTargeting { range: i32, item: Entity },
+    ShowTargeting {
+        range: i32,
+        item: Entity,
+    },
+    MainMenu {
+        menu_selection: gui::MainMenuSelection,
+    },
+    SaveGame,
 }
 
 impl GameState for State {
@@ -44,30 +54,84 @@ impl GameState for State {
         let state = *self.world.resource::<RunState>();
         let mut new_state = match state {
             RunState::PlayerTurn => RunState::MonsterTurn,
-            RunState::ShowInventory => RunState::ShowInventory,
-            RunState::ShowDropItem => RunState::ShowDropItem,
-            RunState::ShowTargeting { range, item } => RunState::ShowTargeting { range, item },
+            RunState::ShowInventory => state,
+            RunState::ShowDropItem => state,
+            RunState::ShowTargeting { range: _, item: _ } => state,
+            RunState::MainMenu { menu_selection: _ } => state,
+            RunState::SaveGame => RunState::MainMenu {
+                menu_selection: gui::MainMenuSelection::LoadGame,
+            },
             _ => RunState::AwaitingInput,
         };
 
-        self.world.insert_non_send_resource::<Key>(ctx.key);
-        self.schedule.run(&mut self.world);
+        match state {
+            RunState::PreRun => {
+                self.world.insert_resource(GameLog {
+                    entries: vec!["Welcome to Rusty Roguelike".to_string()],
+                });
 
-        let mut things = self.world.query::<(&Position, &Renderable)>();
+                let map = Map::new_map_rooms_and_corridors();
+                let (player_x, player_y) = map.rooms[0].center();
+                spawner::player(&mut self.world, player_x, player_y);
 
-        let map = self.world.resource::<Map>();
-        map.draw(ctx);
+                // don't put a monster where the player is!
+                for room in map.rooms.iter().skip(1) {
+                    spawner::spawn_room(&mut self.world, room);
+                }
+                self.world.insert_resource(map);
+            }
 
-        let mut priority = vec![100; MAPCOUNT];
-        for (pos, render) in things.iter(&self.world) {
-            let idx = map.xy_idx(pos.x, pos.y);
-            if map.visible_tiles[idx] && priority[idx] > render.render_order {
-                ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
-                priority[idx] = render.render_order
+            RunState::MainMenu { menu_selection } => {
+                let result = gui::main_menu(menu_selection, ctx);
+                match result {
+                    gui::MainMenuResult::NoSelection { selected } => {
+                        new_state = RunState::MainMenu {
+                            menu_selection: selected,
+                        }
+                    }
+                    gui::MainMenuResult::Selected { selected } => match selected {
+                        gui::MainMenuSelection::NewGame => new_state = RunState::PreRun,
+                        gui::MainMenuSelection::LoadGame => {
+                            saveload::load_game(&mut self.world);
+                            self.world.insert_resource(GameLog {
+                                entries: vec!["Welcome back to Rusty Roguelike".to_string()],
+                            });
+                            new_state = RunState::PlayerTurn;
+                            saveload::delete_save();
+                        }
+                        gui::MainMenuSelection::Quit => {
+                            ::std::process::exit(0);
+                        }
+                    },
+                }
+            }
+
+            RunState::SaveGame => {
+                saveload::save_game(&mut self.world).unwrap();
+                self.world.clear_entities();
+            }
+
+            _ => {
+                self.world.insert_non_send_resource::<Key>(ctx.key);
+                self.schedule.run(&mut self.world);
+
+                let mut things = self.world.query::<(&Position, &Renderable)>();
+
+                let map = self.world.resource::<Map>();
+                map.draw(ctx);
+
+                let mut priority = vec![100; MAPCOUNT];
+                for (pos, render) in things.iter(&self.world) {
+                    let idx = map.xy_idx(pos.x, pos.y);
+                    if map.visible_tiles[idx] && priority[idx] > render.render_order {
+                        ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+                        priority[idx] = render.render_order
+                    }
+                }
+
+                gui::draw_ui(&mut self.world, ctx);
             }
         }
-
-        gui::draw_ui(&mut self.world, ctx);
 
         match state {
             RunState::ShowInventory => {
@@ -156,21 +220,9 @@ fn main() -> BError {
     let rng = RandomNumberGenerator::new();
     world.insert_non_send_resource(rng);
 
-    world.insert_resource(RunState::PreRun);
-    world.insert_resource(GameLog {
-        entries: vec!["Welcome to Rusty Roguelike".to_string()],
+    world.insert_resource(RunState::MainMenu {
+        menu_selection: gui::MainMenuSelection::NewGame,
     });
-
-    let map = Map::new_map_rooms_and_corridors();
-    let (player_x, player_y) = map.rooms[0].center();
-    spawner::player(&mut world, player_x, player_y);
-
-    // don't put a monster where the player is!
-    for room in map.rooms.iter().skip(1) {
-        spawner::spawn_room(&mut world, room);
-    }
-    world.insert_resource(map);
-
     let mut state = State {
         world,
         schedule: Schedule::default(),
