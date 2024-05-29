@@ -27,6 +27,11 @@ pub enum MainMenuResult {
 pub fn draw_ui(world: &mut World, ctx: &mut Rltk) {
     ctx.draw_box(0, 43, 79, 6, WHITE, BLACK);
 
+    {
+        let map = world.resource::<Map>();
+        ctx.print_color(2, 43, YELLOW, BLACK, format!("Depth: {}", map.depth));
+    }
+
     for stats in world
         .query_filtered::<&CombatStats, With<Player>>()
         .iter(world)

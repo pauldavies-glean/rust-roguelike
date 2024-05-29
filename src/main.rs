@@ -15,7 +15,10 @@ mod visibility;
 extern crate serde;
 
 use bevy_ecs::prelude::*;
-use components::{Player, Position, Ranged, Renderable, WantsToDropItem, WantsToUseItem};
+use components::{
+    CombatStats, InBackpack, Player, Position, Ranged, Renderable, Viewshed, WantsToDropItem,
+    WantsToUseItem,
+};
 use gamelog::GameLog;
 use map::{Map, MAPCOUNT};
 use rltk::{
@@ -27,12 +30,100 @@ struct State {
     schedule: Schedule,
 }
 
+impl State {
+    fn entities_to_remove_on_level_change(&mut self) -> Vec<Entity> {
+        let mut entities = self.world.query::<Entity>();
+        let player_entity = self
+            .world
+            .query_filtered::<Entity, With<Player>>()
+            .single(&self.world);
+        let mut backpack = self.world.query::<&InBackpack>();
+
+        let mut to_delete: Vec<Entity> = Vec::new();
+        for entity in entities.iter(&self.world) {
+            let mut should_delete = true;
+
+            // Don't delete the player
+            if entity == player_entity {
+                should_delete = false;
+            }
+
+            // Don't delete the player's equipment
+            let bp = backpack.get(&self.world, entity);
+            if let Ok(bp) = bp {
+                if bp.owner == player_entity {
+                    should_delete = false;
+                }
+            }
+
+            if should_delete {
+                to_delete.push(entity);
+            }
+        }
+
+        to_delete
+    }
+
+    fn init_game(&mut self) {
+        let map = self.create_map(1);
+
+        let (player_x, player_y) = map.rooms[0].center();
+        spawner::player(&mut self.world, player_x, player_y);
+    }
+
+    fn create_map(&mut self, new_depth: i32) -> Map {
+        let map = Map::new_map_rooms_and_corridors(new_depth);
+        self.world.insert_resource(map.clone()); // TODO this is stupid
+
+        // don't put a monster where the player is!
+        for room in map.rooms.iter().skip(1) {
+            spawner::spawn_room(&mut self.world, room);
+        }
+
+        map
+    }
+
+    fn goto_next_level(&mut self) {
+        // Delete entities that aren't the player or his/her equipment
+        let to_delete = self.entities_to_remove_on_level_change();
+        for target in to_delete {
+            self.world.despawn(target);
+        }
+
+        // Build a new map and place the player
+        let old_map = self.world.resource::<Map>();
+        let current_depth = old_map.depth;
+        let new_map = self.create_map(current_depth + 1);
+
+        // Find the player
+        let (mut player_position, mut player_viewshed, mut player_stats) = self
+            .world
+            .query_filtered::<(&mut Position, &mut Viewshed, &mut CombatStats), With<Player>>()
+            .single_mut(&mut self.world);
+
+        // Place the player and update resources
+        let (player_x, player_y) = new_map.rooms[0].center();
+        player_position.x = player_x;
+        player_position.y = player_y;
+
+        // Mark the player's visibility as dirty
+        player_viewshed.dirty = true;
+
+        // Let them recover a bit
+        player_stats.hp = i32::max(player_stats.hp, player_stats.max_hp / 2);
+
+        // Notify the player
+        let mut log = self.world.resource_mut::<GameLog>();
+        log.entries
+            .push("You descend to the next level, and take a moment to heal.".to_string());
+    }
+}
+
 pub type Key = Option<VirtualKeyCode>;
 
 #[derive(PartialEq, Copy, Clone, Resource)]
 pub enum RunState {
     AwaitingInput,
-    PreRun,
     PlayerTurn,
     MonsterTurn,
     ShowInventory,
@@ -45,6 +136,7 @@ pub enum RunState {
         menu_selection: gui::MainMenuSelection,
     },
     SaveGame,
+    NextLevel,
 }
 
 impl GameState for State {
@@ -65,22 +157,6 @@ impl GameState for State {
         };
 
         match state {
-            RunState::PreRun => {
-                self.world.insert_resource(GameLog {
-                    entries: vec!["Welcome to Rusty Roguelike".to_string()],
-                });
-
-                let map = Map::new_map_rooms_and_corridors();
-                let (player_x, player_y) = map.rooms[0].center();
-                spawner::player(&mut self.world, player_x, player_y);
-
-                // don't put a monster where the player is!
-                for room in map.rooms.iter().skip(1) {
-                    spawner::spawn_room(&mut self.world, room);
-                }
-                self.world.insert_resource(map);
-            }
-
             RunState::MainMenu { menu_selection } => {
                 let result = gui::main_menu(menu_selection, ctx);
                 match result {
@@ -90,7 +166,13 @@ impl GameState for State {
                         }
                     }
                     gui::MainMenuResult::Selected { selected } => match selected {
-                        gui::MainMenuSelection::NewGame => new_state = RunState::PreRun,
+                        gui::MainMenuSelection::NewGame => {
+                            self.world.insert_resource(GameLog {
+                                entries: vec!["Welcome to Rusty Roguelike".to_string()],
+                            });
+                            self.init_game();
+                            new_state = RunState::AwaitingInput;
+                        }
                         gui::MainMenuSelection::LoadGame => {
                             saveload::load_game(&mut self.world);
                             self.world.insert_resource(GameLog {
@@ -109,6 +191,10 @@ impl GameState for State {
             RunState::SaveGame => {
                 saveload::save_game(&mut self.world).unwrap();
                 self.world.clear_entities();
+            }
+
+            RunState::NextLevel => {
+                self.goto_next_level();
             }
 
             _ => {
@@ -223,6 +309,7 @@ fn main() -> BError {
     world.insert_resource(RunState::MainMenu {
         menu_selection: gui::MainMenuSelection::NewGame,
     });
+
     let mut state = State {
         world,
         schedule: Schedule::default(),

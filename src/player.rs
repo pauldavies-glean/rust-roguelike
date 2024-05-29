@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use crate::components::{Item, Player, WantsToMelee, WantsToPickupItem};
 use crate::gamelog::GameLog;
+use crate::map::TileType;
 use crate::{
     components::{CombatStats, Position, Viewshed},
     map::Map,
@@ -101,6 +102,17 @@ fn get_item(
     }
 }
 
+pub fn try_next_level(player_pos: &Position, map: Res<Map>, mut log: ResMut<GameLog>) -> bool {
+    let player_idx = map.xy_idx(player_pos.x, player_pos.y);
+    if map.tiles[player_idx] == TileType::DownStairs {
+        true
+    } else {
+        log.entries
+            .push("There is no way down from here.".to_string());
+        false
+    }
+}
+
 pub fn player_input_system(
     mut commands: Commands,
     mut players: Query<(Entity, &mut Position, &mut Viewshed), (With<Player>, Without<Item>)>,
@@ -143,6 +155,12 @@ pub fn player_input_system(
                 VirtualKeyCode::D => new_state = RunState::ShowDropItem,
 
                 VirtualKeyCode::Escape => new_state = RunState::SaveGame,
+
+                VirtualKeyCode::Period => {
+                    if try_next_level(pos.as_ref(), map, log) {
+                        new_state = RunState::NextLevel;
+                    }
+                }
 
                 _ => {}
             }
