@@ -5,7 +5,7 @@ use rltk::VirtualKeyCode;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 
-use crate::components::{Item, Player, WantsToMelee, WantsToPickupItem};
+use crate::components::{Item, Monster, Player, Waiting, WantsToMelee, WantsToPickupItem};
 use crate::gamelog::GameLog;
 use crate::map::TileType;
 use crate::{
@@ -113,6 +113,33 @@ pub fn try_next_level(player_pos: &Position, map: Res<Map>, mut log: ResMut<Game
     }
 }
 
+pub fn waiting_system(
+    mut commands: Commands,
+    mut waiters: Query<(Entity, &mut CombatStats, &Viewshed), With<Waiting>>,
+    monsters: Query<Entity, With<Monster>>,
+    map: Res<Map>,
+) {
+    for (entity, mut combat, viewshed) in waiters.iter_mut() {
+        let mut can_heal = true;
+
+        for tile in viewshed.visible_tiles.iter() {
+            let idx = map.xy_idx(tile.x, tile.y);
+            for entity_id in map.tile_content[idx].iter() {
+                if monsters.contains(*entity_id) {
+                    can_heal = false;
+                    break;
+                }
+            }
+        }
+
+        if can_heal {
+            combat.hp = i32::min(combat.hp + 1, combat.max_hp);
+        }
+
+        commands.entity(entity).remove::<Waiting>();
+    }
+}
+
 pub fn player_input_system(
     mut commands: Commands,
     mut players: Query<(Entity, &mut Position, &mut Viewshed), (With<Player>, Without<Item>)>,
@@ -128,7 +155,7 @@ pub fn player_input_system(
     }
 
     let (player, mut pos, mut viewshed) = players.single_mut();
-    let player_commands = commands.entity(player);
+    let mut player_commands = commands.entity(player);
     let mut new_state = RunState::AwaitingInput;
 
     if let Some(k) = *key {
@@ -160,6 +187,11 @@ pub fn player_input_system(
                     if try_next_level(pos.as_ref(), map, log) {
                         new_state = RunState::NextLevel;
                     }
+                }
+
+                VirtualKeyCode::Numpad5 | VirtualKeyCode::Space => {
+                    player_commands.insert(Waiting {});
+                    new_state = RunState::PlayerTurn;
                 }
 
                 _ => {}

@@ -7,6 +7,7 @@ mod gui;
 mod inventory;
 mod map;
 mod player;
+mod random_table;
 mod rect;
 mod saveload;
 mod spawner;
@@ -77,7 +78,7 @@ impl State {
 
         // don't put a monster where the player is!
         for room in map.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.world, room);
+            spawner::spawn_room(&mut self.world, room, new_depth);
         }
 
         map
@@ -322,6 +323,7 @@ fn main() -> BError {
             player::player_input_system,
             inventory::inventory_system,
             visibility::visibility_system,
+            player::waiting_system,
             ai::monster_ai_system,
             combat::melee_combat_system,
             damage::damage_system,

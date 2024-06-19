@@ -141,3 +141,6 @@ pub struct Confusion {
 pub struct Confused {
     pub turns: i32,
 }
+
+#[derive(Clone, Component, Default, Serialize, Deserialize)]
+pub struct Waiting {}
