@@ -7,8 +7,9 @@ use rltk::{
 
 use crate::{
     components::{
-        AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, InflictsDamage, Item,
-        Monster, Name, Player, Position, ProvidesHealing, Ranged, Renderable, Viewshed,
+        AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, DefenseBonus, EquipmentSlot,
+        Equippable, InflictsDamage, Item, MeleePowerBonus, Monster, Name, Player, Position,
+        ProvidesHealing, Ranged, Renderable, Viewshed,
     },
     map::MAPWIDTH,
     random_table::RandomTable,
@@ -91,6 +92,10 @@ fn room_table(map_depth: i32) -> RandomTable {
         .add("Fireball Scroll", 2 + map_depth)
         .add("Confusion Scroll", 2 + map_depth)
         .add("Magic Missile Scroll", 4)
+        .add("Dagger", 3)
+        .add("Shield", 3)
+        .add("Longsword", map_depth - 1)
+        .add("Tower Shield", map_depth - 1)
 }
 
 /// Fills a room with stuff!
@@ -132,6 +137,10 @@ pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
             "Fireball Scroll" => fireball_scroll(world, x, y),
             "Confusion Scroll" => confusion_scroll(world, x, y),
             "Magic Missile Scroll" => magic_missile_scroll(world, x, y),
+            "Dagger" => dagger(world, x, y),
+            "Shield" => shield(world, x, y),
+            "Longsword" => longsword(world, x, y),
+            "Tower Shield" => tower_shield(world, x, y),
             _ => {}
         }
     }
@@ -210,5 +219,85 @@ fn confusion_scroll(world: &mut World, x: i32, y: i32) {
         Consumable {},
         Ranged { range: 6 },
         Confusion { turns: 4 },
+    ));
+}
+
+fn dagger(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('/'),
+            fg: CYAN,
+            bg: BLACK,
+            render_order: 2,
+        },
+        Name {
+            name: "Dagger".to_string(),
+        },
+        Item {},
+        Equippable {
+            slot: EquipmentSlot::Melee,
+        },
+        MeleePowerBonus { power: 2 },
+    ));
+}
+
+fn longsword(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('/'),
+            fg: YELLOW,
+            bg: BLACK,
+            render_order: 2,
+        },
+        Name {
+            name: "Longsword".to_string(),
+        },
+        Item {},
+        Equippable {
+            slot: EquipmentSlot::Melee,
+        },
+        MeleePowerBonus { power: 4 },
+    ));
+}
+
+fn shield(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('('),
+            fg: CYAN,
+            bg: BLACK,
+            render_order: 2,
+        },
+        Name {
+            name: "Shield".to_string(),
+        },
+        Item {},
+        Equippable {
+            slot: EquipmentSlot::Shield,
+        },
+        DefenseBonus { defense: 1 },
+    ));
+}
+
+fn tower_shield(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('('),
+            fg: YELLOW,
+            bg: BLACK,
+            render_order: 2,
+        },
+        Name {
+            name: "Shield".to_string(),
+        },
+        Item {},
+        Equippable {
+            slot: EquipmentSlot::Shield,
+        },
+        DefenseBonus { defense: 3 },
     ));
 }

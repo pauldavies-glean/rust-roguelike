@@ -17,8 +17,8 @@ extern crate serde;
 
 use bevy_ecs::prelude::*;
 use components::{
-    CombatStats, InBackpack, Player, Position, Ranged, Renderable, Viewshed, WantsToDropItem,
-    WantsToUseItem,
+    CombatStats, Equipped, InBackpack, Player, Position, Ranged, Renderable, Viewshed,
+    WantsToDropItem, WantsToRemoveItem, WantsToUseItem,
 };
 use gamelog::GameLog;
 use map::{Map, MAPCOUNT};
@@ -39,6 +39,7 @@ impl State {
             .query_filtered::<Entity, With<Player>>()
             .single(&self.world);
         let mut backpack = self.world.query::<&InBackpack>();
+        let mut equipped = self.world.query::<&Equipped>();
 
         let mut to_delete: Vec<Entity> = Vec::new();
         for entity in entities.iter(&self.world) {
@@ -53,6 +54,13 @@ impl State {
             let bp = backpack.get(&self.world, entity);
             if let Ok(bp) = bp {
                 if bp.owner == player_entity {
+                    should_delete = false;
+                }
+            }
+
+            let eq = equipped.get(&self.world, entity);
+            if let Ok(eq) = eq {
+                if eq.owner == player_entity {
                     should_delete = false;
                 }
             }
@@ -73,7 +81,8 @@ impl State {
     }
 
     fn create_map(&mut self, new_depth: i32) -> Map {
-        let map = Map::new_map_rooms_and_corridors(new_depth);
+        let mut rng = self.world.non_send_resource_mut::<RandomNumberGenerator>();
+        let map = Map::new_map_rooms_and_corridors(new_depth, &mut rng);
         self.world.insert_resource(map.clone()); // TODO this is stupid
 
         // don't put a monster where the player is!
@@ -118,6 +127,10 @@ impl State {
         log.entries
             .push("You descend to the next level, and take a moment to heal.".to_string());
     }
+
+    fn game_over_cleanup(&mut self) {
+        self.world.clear_entities();
+    }
 }
 
 pub type Key = Option<VirtualKeyCode>;
@@ -138,6 +151,8 @@ pub enum RunState {
     },
     SaveGame,
     NextLevel,
+    ShowRemoveItem,
+    GameOver,
 }
 
 impl GameState for State {
@@ -154,6 +169,8 @@ impl GameState for State {
             RunState::SaveGame => RunState::MainMenu {
                 menu_selection: gui::MainMenuSelection::LoadGame,
             },
+            RunState::ShowRemoveItem => state,
+            RunState::GameOver => state,
             _ => RunState::AwaitingInput,
         };
 
@@ -196,6 +213,19 @@ impl GameState for State {
 
             RunState::NextLevel => {
                 self.goto_next_level();
+            }
+
+            RunState::GameOver => {
+                let result = gui::game_over(ctx);
+                match result {
+                    gui::GameOverResult::NoSelection => {}
+                    gui::GameOverResult::QuitToMenu => {
+                        self.game_over_cleanup();
+                        new_state = RunState::MainMenu {
+                            menu_selection: gui::MainMenuSelection::NewGame,
+                        }
+                    }
+                }
             }
 
             _ => {
@@ -288,6 +318,27 @@ impl GameState for State {
                     }
                 }
             }
+            RunState::ShowRemoveItem => {
+                let (result, item) = gui::remove_item_menu(&mut self.world, ctx);
+                match result {
+                    gui::ItemMenuResult::Cancel => new_state = RunState::AwaitingInput,
+                    gui::ItemMenuResult::NoResponse => {}
+                    gui::ItemMenuResult::Selected => {
+                        let player_entity = self
+                            .world
+                            .query_filtered::<Entity, With<Player>>()
+                            .single(&self.world);
+
+                        self.world
+                            .entity_mut(player_entity)
+                            .insert(WantsToRemoveItem {
+                                item: item.unwrap(),
+                            });
+
+                        new_state = RunState::PlayerTurn;
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -320,6 +371,7 @@ fn main() -> BError {
         (
             inventory::item_use_system,
             inventory::drop_system,
+            inventory::item_remove_system,
             player::player_input_system,
             inventory::inventory_system,
             visibility::visibility_system,

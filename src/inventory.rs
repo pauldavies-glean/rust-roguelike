@@ -2,9 +2,9 @@ use bevy_ecs::prelude::*;
 
 use crate::{
     components::{
-        AreaOfEffect, CombatStats, Confused, Confusion, Consumable, InBackpack, InflictsDamage,
-        Item, Name, Player, Position, ProvidesHealing, SufferDamage, WantsToDropItem,
-        WantsToPickupItem, WantsToUseItem,
+        AreaOfEffect, CombatStats, Confused, Confusion, Consumable, Equippable, Equipped,
+        InBackpack, InflictsDamage, Item, Name, Player, Position, ProvidesHealing, SufferDamage,
+        WantsToDropItem, WantsToPickupItem, WantsToRemoveItem, WantsToUseItem,
     },
     gamelog::GameLog,
     map::Map,
@@ -46,6 +46,8 @@ pub fn item_use_system(
         Option<&Confusion>,
         Option<&AreaOfEffect>,
     )>,
+    equippables: Query<(&Name, &Equippable)>,
+    equipped_items: Query<(Entity, &Equipped, &Name)>,
     mut log: ResMut<GameLog>,
     map: Res<Map>,
 ) {
@@ -160,6 +162,39 @@ pub fn item_use_system(
                 }
             }
 
+            if let Ok((item_name, can_equip)) = equippables.get(use_item.item) {
+                let target_slot = can_equip.slot;
+
+                // Remove any items in the same slot
+                let mut to_unequip: Vec<Entity> = Vec::new();
+                for (item_entity, already_equipped, name) in equipped_items.iter() {
+                    if already_equipped.owner == user && already_equipped.slot == target_slot {
+                        to_unequip.push(item_entity);
+                        if player.is_some() {
+                            log.entries.push(format!("You unequip {}.", name.name));
+                        }
+                    }
+                }
+                for item in to_unequip.iter() {
+                    commands
+                        .entity(*item)
+                        .remove::<Equipped>()
+                        .insert(InBackpack { owner: user });
+                }
+
+                // Wield the item
+                commands
+                    .entity(use_item.item)
+                    .insert(Equipped {
+                        owner: user,
+                        slot: target_slot,
+                    })
+                    .remove::<InBackpack>();
+                if player.is_some() {
+                    log.entries.push(format!("You equip {}.", item_name.name))
+                }
+            }
+
             commands.entity(user).remove::<WantsToUseItem>();
         }
     }
@@ -182,6 +217,28 @@ pub fn drop_system(
             let item_name = items.get(intent.item).unwrap();
             log.entries
                 .push(format!("You drop the {}.", item_name.name));
+        }
+    }
+}
+
+pub fn item_remove_system(
+    mut commands: Commands,
+    removers: Query<(Entity, &WantsToRemoveItem, Option<&Player>)>,
+    names: Query<&Name>,
+    mut log: ResMut<GameLog>,
+) {
+    for (entity, intent, player) in removers.iter() {
+        commands
+            .entity(intent.item)
+            .remove::<Equipped>()
+            .insert(InBackpack { owner: entity });
+        commands.entity(entity).remove::<WantsToRemoveItem>();
+
+        if player.is_some() {
+            log.entries.push(format!(
+                "You remove the {}.",
+                names.get(intent.item).unwrap().name,
+            ));
         }
     }
 }

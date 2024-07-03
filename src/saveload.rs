@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        AreaOfEffect, BlocksTile, CombatStats, Confused, Confusion, Consumable, InBackpack,
-        InflictsDamage, Item, Monster, Name, Player, Position, ProvidesHealing, Ranged, Renderable,
-        Viewshed,
+        AreaOfEffect, BlocksTile, CombatStats, Confused, Confusion, Consumable, DefenseBonus,
+        Equippable, Equipped, InBackpack, InflictsDamage, Item, MeleePowerBonus, Monster, Name,
+        Player, Position, ProvidesHealing, Ranged, Renderable, Viewshed,
     },
     map::{Map, MAPCOUNT},
 };
@@ -21,9 +21,13 @@ struct EntityRecord {
     confused: Option<Confused>,
     confusion: Option<Confusion>,
     consumable: Option<Consumable>,
+    defense_bonus: Option<DefenseBonus>,
+    equippable: Option<Equippable>,
+    equipped: Option<Equipped>,
     in_backpack: Option<InBackpack>,
     inflicts_damage: Option<InflictsDamage>,
     item: Option<Item>,
+    melee_power_bonus: Option<MeleePowerBonus>,
     monster: Option<Monster>,
     name: Option<Name>,
     player: Option<Player>,
@@ -55,9 +59,13 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             confused: e.get::<Confused>().cloned(),
             confusion: e.get::<Confusion>().cloned(),
             consumable: e.get::<Consumable>().cloned(),
+            defense_bonus: e.get::<DefenseBonus>().cloned(),
+            equippable: e.get::<Equippable>().cloned(),
+            equipped: e.get::<Equipped>().cloned(),
             in_backpack: e.get::<InBackpack>().cloned(),
             inflicts_damage: e.get::<InflictsDamage>().cloned(),
             item: e.get::<Item>().cloned(),
+            melee_power_bonus: e.get::<MeleePowerBonus>().cloned(),
             monster: e.get::<Monster>().cloned(),
             name: e.get::<Name>().cloned(),
             player: e.get::<Player>().cloned(),
@@ -115,6 +123,15 @@ pub fn load_game(world: &mut World) {
         if let Some(c) = entity.consumable {
             e.insert(c);
         }
+        if let Some(c) = entity.defense_bonus {
+            e.insert(c);
+        }
+        if let Some(c) = entity.equippable {
+            e.insert(c);
+        }
+        if let Some(c) = entity.equipped {
+            e.insert(c);
+        }
         if let Some(c) = entity.in_backpack {
             e.insert(c);
         }
@@ -122,6 +139,9 @@ pub fn load_game(world: &mut World) {
             e.insert(c);
         }
         if let Some(c) = entity.item {
+            e.insert(c);
+        }
+        if let Some(c) = entity.melee_power_bonus {
             e.insert(c);
         }
         if let Some(c) = entity.monster {
@@ -150,10 +170,15 @@ pub fn load_game(world: &mut World) {
         }
     }
 
-    // I don't know if this is needed, but it seems important...
+    // refresh IDs for components that refer to other entities
     for backpack in world.query::<Option<&mut InBackpack>>().iter_mut(world) {
         if let Some(mut backpack) = backpack {
             backpack.owner = *id_transfer.get(&backpack.owner).unwrap();
+        }
+    }
+    for equipped in world.query::<Option<&mut Equipped>>().iter_mut(world) {
+        if let Some(mut equipped) = equipped {
+            equipped.owner = *id_transfer.get(&equipped.owner).unwrap();
         }
     }
 }

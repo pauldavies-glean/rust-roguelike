@@ -1,7 +1,9 @@
 use bevy_ecs::prelude::*;
 
 use crate::{
-    components::{CombatStats, Name, SufferDamage, WantsToMelee},
+    components::{
+        CombatStats, DefenseBonus, Equipped, MeleePowerBonus, Name, SufferDamage, WantsToMelee,
+    },
     gamelog::GameLog,
 };
 
@@ -9,6 +11,8 @@ pub fn melee_combat_system(
     mut commands: Commands,
     mut attackers: Query<(Entity, &WantsToMelee, &Name, &CombatStats)>,
     combatants: Query<&CombatStats>,
+    power_bonuses: Query<(&MeleePowerBonus, &Equipped)>,
+    defense_bonuses: Query<(&DefenseBonus, &Equipped)>,
     mut sufferers: Query<&mut SufferDamage>,
     names: Query<&Name>,
     mut log: ResMut<GameLog>,
@@ -19,7 +23,21 @@ pub fn melee_combat_system(
         if target_stats.hp > 0 {
             let target_name = names.get(victim).unwrap();
 
-            let damage = stats.power - target_stats.defense;
+            let mut power = stats.power;
+            for (bonus, equipped) in power_bonuses.iter() {
+                if equipped.owner == attacker {
+                    power += bonus.power;
+                }
+            }
+
+            let mut defense = target_stats.defense;
+            for (bonus, equipped) in defense_bonuses.iter() {
+                if equipped.owner == victim {
+                    defense += bonus.defense;
+                }
+            }
+
+            let damage = power - defense;
             if damage <= 0 {
                 log.entries.push(format!(
                     "{} is unable to hurt {}",

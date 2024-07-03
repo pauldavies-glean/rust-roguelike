@@ -180,6 +180,7 @@ pub fn player_input_system(
                 }
                 VirtualKeyCode::I => new_state = RunState::ShowInventory,
                 VirtualKeyCode::D => new_state = RunState::ShowDropItem,
+                VirtualKeyCode::R => new_state = RunState::ShowRemoveItem,
 
                 VirtualKeyCode::Escape => new_state = RunState::SaveGame,
 

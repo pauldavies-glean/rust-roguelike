@@ -144,3 +144,35 @@ pub struct Confused {
 
 #[derive(Clone, Component, Default, Serialize, Deserialize)]
 pub struct Waiting {}
+
+#[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
+pub enum EquipmentSlot {
+    Melee,
+    Shield,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct Equippable {
+    pub slot: EquipmentSlot,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct Equipped {
+    pub owner: Entity,
+    pub slot: EquipmentSlot,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct MeleePowerBonus {
+    pub power: i32,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct DefenseBonus {
+    pub defense: i32,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct WantsToRemoveItem {
+    pub item: Entity,
+}
