@@ -3,7 +3,10 @@ use rltk::{
     to_cp437, Algorithm2D, BaseMap, DistanceAlg, Point, RandomNumberGenerator, Rltk, SmallVec, RGB,
 };
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+};
 
 use crate::{
     components::{BlocksTile, Position},
@@ -27,6 +30,7 @@ pub struct Map {
     pub visible_tiles: Vec<bool>,
     pub blocked: Vec<bool>,
     pub depth: i32,
+    pub bloodstains: HashSet<usize>,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -86,6 +90,7 @@ impl Map {
             blocked: vec![false; MAPCOUNT],
             tile_content: vec![Vec::new(); MAPCOUNT],
             depth: new_depth,
+            bloodstains: HashSet::new(),
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -202,6 +207,7 @@ impl Map {
             if self.revealed_tiles[idx] {
                 let glyph;
                 let mut fg;
+                let mut bg = RGB::from_f32(0., 0., 0.);
                 match tile {
                     TileType::Floor => {
                         glyph = to_cp437('.');
@@ -216,10 +222,13 @@ impl Map {
                         fg = RGB::from_f32(0., 1.0, 1.0);
                     }
                 }
+                if self.bloodstains.contains(&idx) {
+                    bg = RGB::from_f32(0.75, 0., 0.);
+                }
                 if !self.visible_tiles[idx] {
                     fg = fg.to_greyscale()
                 }
-                ctx.set(x, y, fg, RGB::from_f32(0., 0., 0.), glyph);
+                ctx.set(x, y, fg, bg, glyph);
             }
             // Move the coordinates
             x += 1;
