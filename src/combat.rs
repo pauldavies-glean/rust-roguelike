@@ -1,10 +1,13 @@
 use bevy_ecs::prelude::*;
+use rltk::{to_cp437, BLACK, ORANGE};
 
 use crate::{
     components::{
-        CombatStats, DefenseBonus, Equipped, MeleePowerBonus, Name, SufferDamage, WantsToMelee,
+        CombatStats, DefenseBonus, Equipped, MeleePowerBonus, Name, Position, SufferDamage,
+        WantsToMelee,
     },
     gamelog::GameLog,
+    particle::ParticleBuilder,
 };
 
 pub fn melee_combat_system(
@@ -15,7 +18,9 @@ pub fn melee_combat_system(
     defense_bonuses: Query<(&DefenseBonus, &Equipped)>,
     mut sufferers: Query<&mut SufferDamage>,
     names: Query<&Name>,
+    positions: Query<&Position>,
     mut log: ResMut<GameLog>,
+    mut particle: ResMut<ParticleBuilder>,
 ) {
     for (attacker, wants_melee, name, stats) in attackers.iter_mut() {
         let victim = wants_melee.target;
@@ -35,6 +40,11 @@ pub fn melee_combat_system(
                 if equipped.owner == victim {
                     defense += bonus.defense;
                 }
+            }
+
+            let pos = positions.get(victim);
+            if let Ok(pos) = pos {
+                particle.request(pos.x, pos.y, ORANGE, BLACK, to_cp437('‼'), 200.0);
             }
 
             let damage = power - defense;

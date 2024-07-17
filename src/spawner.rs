@@ -29,7 +29,7 @@ pub fn player(world: &mut World, player_x: i32, player_y: i32) {
             glyph: to_cp437('@'),
             fg: YELLOW,
             bg: BLACK,
-            render_order: 0,
+            render_order: 1,
         },
         Player {},
         Name {
@@ -63,7 +63,7 @@ fn monster<S: ToString>(world: &mut World, x: i32, y: i32, glyph: FontCharType, 
             glyph,
             fg: RED,
             bg: BLACK,
-            render_order: 1,
+            render_order: 5,
         },
         Viewshed {
             visible_tiles: Vec::new(),
@@ -153,7 +153,7 @@ fn health_potion(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437('¡'),
             fg: MAGENTA,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Health Potion".to_string(),
@@ -171,7 +171,7 @@ fn magic_missile_scroll(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437(')'),
             fg: CYAN,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Magic Missile Scroll".to_string(),
@@ -190,7 +190,7 @@ fn fireball_scroll(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437(')'),
             fg: ORANGE,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Fireball Scroll".to_string(),
@@ -210,7 +210,7 @@ fn confusion_scroll(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437(')'),
             fg: PINK,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Confusion Scroll".to_string(),
@@ -229,7 +229,7 @@ fn dagger(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437('/'),
             fg: CYAN,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Dagger".to_string(),
@@ -249,7 +249,7 @@ fn longsword(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437('/'),
             fg: YELLOW,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Longsword".to_string(),
@@ -269,7 +269,7 @@ fn shield(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437('('),
             fg: CYAN,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Shield".to_string(),
@@ -289,7 +289,7 @@ fn tower_shield(world: &mut World, x: i32, y: i32) {
             glyph: to_cp437('('),
             fg: YELLOW,
             bg: BLACK,
-            render_order: 2,
+            render_order: 10,
         },
         Name {
             name: "Shield".to_string(),

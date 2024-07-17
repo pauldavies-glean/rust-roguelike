@@ -6,6 +6,7 @@ mod gamelog;
 mod gui;
 mod inventory;
 mod map;
+mod particle;
 mod player;
 mod random_table;
 mod rect;
@@ -134,6 +135,7 @@ impl State {
 }
 
 pub type Key = Option<VirtualKeyCode>;
+pub type FrameTime = f32;
 
 #[derive(PartialEq, Copy, Clone, Resource)]
 pub enum RunState {
@@ -230,6 +232,8 @@ impl GameState for State {
 
             _ => {
                 self.world.insert_non_send_resource::<Key>(ctx.key);
+                self.world
+                    .insert_non_send_resource::<FrameTime>(ctx.frame_time_ms);
                 self.schedule.run(&mut self.world);
 
                 let mut things = self.world.query::<(&Position, &Renderable)>();
@@ -361,6 +365,7 @@ fn main() -> BError {
     world.insert_resource(RunState::MainMenu {
         menu_selection: gui::MainMenuSelection::NewGame,
     });
+    world.insert_resource(particle::ParticleBuilder::new());
 
     let mut state = State {
         world,
@@ -380,6 +385,8 @@ fn main() -> BError {
             combat::melee_combat_system,
             damage::damage_system,
             map::map_indexing_system,
+            particle::cull_dead_particles_system,
+            particle::spawn_particles_system,
         )
             .chain(),
     );

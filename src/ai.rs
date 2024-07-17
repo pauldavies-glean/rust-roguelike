@@ -1,9 +1,10 @@
 use bevy_ecs::prelude::*;
-use rltk::{a_star_search, DistanceAlg, Point};
+use rltk::{a_star_search, to_cp437, DistanceAlg, Point, BLACK, MAGENTA};
 
 use crate::{
     components::{AsPoint, Confused, Monster, Player, Position, Viewshed, WantsToMelee},
     map::Map,
+    particle::ParticleBuilder,
     RunState,
 };
 
@@ -16,6 +17,7 @@ pub fn monster_ai_system(
     players: Query<(Entity, &Position), With<Player>>,
     mut map: ResMut<Map>,
     state: Res<RunState>,
+    mut particle: ResMut<ParticleBuilder>,
 ) {
     if *state != RunState::MonsterTurn {
         return;
@@ -33,6 +35,8 @@ pub fn monster_ai_system(
                 commands.entity(monster).remove::<Confused>();
             }
             can_act = false;
+
+            particle.request(pos.x, pos.y, MAGENTA, BLACK, to_cp437('?'), 200.0);
         }
 
         if can_act {
