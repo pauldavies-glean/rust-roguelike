@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         AreaOfEffect, BlocksTile, CombatStats, Confused, Confusion, Consumable, DefenseBonus,
-        Equippable, Equipped, InBackpack, InflictsDamage, Item, MeleePowerBonus, Monster, Name,
-        Player, Position, ProvidesHealing, Ranged, Renderable, Viewshed,
+        Equippable, Equipped, HungerClock, InBackpack, InflictsDamage, Item, MeleePowerBonus,
+        Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable,
+        Viewshed,
     },
     map::{Map, MAPCOUNT},
 };
@@ -24,6 +25,7 @@ struct EntityRecord {
     defense_bonus: Option<DefenseBonus>,
     equippable: Option<Equippable>,
     equipped: Option<Equipped>,
+    hunger_clock: Option<HungerClock>,
     in_backpack: Option<InBackpack>,
     inflicts_damage: Option<InflictsDamage>,
     item: Option<Item>,
@@ -32,6 +34,7 @@ struct EntityRecord {
     name: Option<Name>,
     player: Option<Player>,
     position: Option<Position>,
+    provides_food: Option<ProvidesFood>,
     provides_healing: Option<ProvidesHealing>,
     ranged: Option<Ranged>,
     renderable: Option<Renderable>,
@@ -62,6 +65,7 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             defense_bonus: e.get::<DefenseBonus>().cloned(),
             equippable: e.get::<Equippable>().cloned(),
             equipped: e.get::<Equipped>().cloned(),
+            hunger_clock: e.get::<HungerClock>().cloned(),
             in_backpack: e.get::<InBackpack>().cloned(),
             inflicts_damage: e.get::<InflictsDamage>().cloned(),
             item: e.get::<Item>().cloned(),
@@ -70,6 +74,7 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             name: e.get::<Name>().cloned(),
             player: e.get::<Player>().cloned(),
             position: e.get::<Position>().cloned(),
+            provides_food: e.get::<ProvidesFood>().cloned(),
             provides_healing: e.get::<ProvidesHealing>().cloned(),
             ranged: e.get::<Ranged>().cloned(),
             renderable: e.get::<Renderable>().cloned(),
@@ -132,6 +137,9 @@ pub fn load_game(world: &mut World) {
         if let Some(c) = entity.equipped {
             e.insert(c);
         }
+        if let Some(c) = entity.hunger_clock {
+            e.insert(c);
+        }
         if let Some(c) = entity.in_backpack {
             e.insert(c);
         }
@@ -154,6 +162,9 @@ pub fn load_game(world: &mut World) {
             e.insert(c);
         }
         if let Some(c) = entity.position {
+            e.insert(c);
+        }
+        if let Some(c) = entity.provides_food {
             e.insert(c);
         }
         if let Some(c) = entity.provides_healing {

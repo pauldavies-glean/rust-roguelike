@@ -1,11 +1,14 @@
 use bevy_ecs::prelude::*;
 use rltk::{
-    to_cp437, DistanceAlg, FontCharType, Point, Rltk, VirtualKeyCode, BLACK, BLUE, CYAN, GREY,
-    MAGENTA, RED, WHITE, YELLOW,
+    to_cp437, DistanceAlg, FontCharType, Point, Rltk, VirtualKeyCode, BLACK, BLUE, CYAN, GREEN,
+    GREY, MAGENTA, ORANGE, RED, WHITE, YELLOW,
 };
 
 use crate::{
-    components::{AsPoint, CombatStats, Equipped, InBackpack, Name, Player, Position, Viewshed},
+    components::{
+        AsPoint, CombatStats, Equipped, HungerClock, HungerState, InBackpack, Name, Player,
+        Position, Viewshed,
+    },
     gamelog::GameLog,
     map::Map,
     saveload,
@@ -32,13 +35,20 @@ pub fn draw_ui(world: &mut World, ctx: &mut Rltk) {
         ctx.print_color(2, 43, YELLOW, BLACK, format!("Depth: {}", map.depth));
     }
 
-    for stats in world
-        .query_filtered::<&CombatStats, With<Player>>()
+    for (stats, hunger) in world
+        .query_filtered::<(&CombatStats, &HungerClock), With<Player>>()
         .iter(world)
     {
         let health = format!(" HP: {} / {} ", stats.hp, stats.max_hp);
         ctx.print_color(12, 43, YELLOW, BLACK, &health);
         ctx.draw_bar_horizontal(28, 43, 51, stats.hp, stats.max_hp, RED, BLACK);
+
+        match hunger.state {
+            HungerState::WellFed => ctx.print_color(71, 42, GREEN, BLACK, "Well Fed"),
+            HungerState::Normal => {}
+            HungerState::Hungry => ctx.print_color(71, 42, ORANGE, BLACK, "Hungry"),
+            HungerState::Starving => ctx.print_color(71, 42, RED, BLACK, "Starving"),
+        }
     }
 
     let log = world.resource::<GameLog>();

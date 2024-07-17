@@ -5,7 +5,9 @@ use rltk::VirtualKeyCode;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 
-use crate::components::{Item, Monster, Player, Waiting, WantsToMelee, WantsToPickupItem};
+use crate::components::{
+    HungerClock, HungerState, Item, Monster, Player, Waiting, WantsToMelee, WantsToPickupItem,
+};
 use crate::gamelog::GameLog;
 use crate::map::TileType;
 use crate::{
@@ -115,11 +117,11 @@ pub fn try_next_level(player_pos: &Position, map: Res<Map>, mut log: ResMut<Game
 
 pub fn waiting_system(
     mut commands: Commands,
-    mut waiters: Query<(Entity, &mut CombatStats, &Viewshed), With<Waiting>>,
+    mut waiters: Query<(Entity, &mut CombatStats, &Viewshed, Option<&HungerClock>), With<Waiting>>,
     monsters: Query<Entity, With<Monster>>,
     map: Res<Map>,
 ) {
-    for (entity, mut combat, viewshed) in waiters.iter_mut() {
+    for (entity, mut combat, viewshed, hunger) in waiters.iter_mut() {
         let mut can_heal = true;
 
         for tile in viewshed.visible_tiles.iter() {
@@ -129,6 +131,14 @@ pub fn waiting_system(
                     can_heal = false;
                     break;
                 }
+            }
+        }
+
+        if let Some(hunger) = hunger {
+            match hunger.state {
+                HungerState::Hungry => can_heal = false,
+                HungerState::Starving => can_heal = false,
+                _ => {}
             }
         }
 

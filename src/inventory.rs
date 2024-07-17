@@ -4,8 +4,9 @@ use rltk::{to_cp437, BLACK, GREEN, MAGENTA, ORANGE, RED};
 use crate::{
     components::{
         AreaOfEffect, CombatStats, Confused, Confusion, Consumable, Equippable, Equipped,
-        InBackpack, InflictsDamage, Item, Name, Player, Position, ProvidesHealing, SufferDamage,
-        WantsToDropItem, WantsToPickupItem, WantsToRemoveItem, WantsToUseItem,
+        HungerClock, HungerState, InBackpack, InflictsDamage, Item, Name, Player, Position,
+        ProvidesFood, ProvidesHealing, SufferDamage, WantsToDropItem, WantsToPickupItem,
+        WantsToRemoveItem, WantsToUseItem,
     },
     gamelog::GameLog,
     map::Map,
@@ -37,7 +38,12 @@ pub fn inventory_system(
 
 pub fn item_use_system(
     mut commands: Commands,
-    users: Query<(Entity, &WantsToUseItem, Option<&Player>)>,
+    mut users: Query<(
+        Entity,
+        &WantsToUseItem,
+        Option<&mut HungerClock>,
+        Option<&Player>,
+    )>,
     mut combatants: Query<(&mut CombatStats, Option<&Position>)>,
     mut mobs: Query<(&Name, Option<&mut SufferDamage>, Option<&Position>)>,
     consumables: Query<(
@@ -46,6 +52,7 @@ pub fn item_use_system(
         Option<&ProvidesHealing>,
         Option<&InflictsDamage>,
         Option<&Confusion>,
+        Option<&ProvidesFood>,
         Option<&AreaOfEffect>,
     )>,
     equippables: Query<(&Name, &Equippable)>,
@@ -54,8 +61,8 @@ pub fn item_use_system(
     map: Res<Map>,
     mut particle: ResMut<ParticleBuilder>,
 ) {
-    for (user, use_item, player) in users.iter() {
-        if let Ok((item_name, consumable, healing, inflict, confusion, aoe)) =
+    for (user, use_item, hunger, player) in users.iter_mut() {
+        if let Ok((item_name, consumable, healing, inflict, confusion, edible, aoe)) =
             consumables.get(use_item.item)
         {
             // Targeting
@@ -172,6 +179,19 @@ pub fn item_use_system(
                         if let Some(pos) = pos {
                             particle.request(pos.x, pos.y, MAGENTA, BLACK, to_cp437('?'), 200.0);
                         }
+                    }
+                }
+            }
+
+            if edible.is_some() {
+                if let Some(mut hunger) = hunger {
+                    used_up = true;
+
+                    hunger.state = HungerState::WellFed;
+                    hunger.duration = 20;
+
+                    if player.is_some() {
+                        log.entries.push(format!("You eat the {}.", item_name.name));
                     }
                 }
             }

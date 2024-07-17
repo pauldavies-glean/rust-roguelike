@@ -3,8 +3,8 @@ use rltk::{to_cp437, BLACK, ORANGE};
 
 use crate::{
     components::{
-        CombatStats, DefenseBonus, Equipped, MeleePowerBonus, Name, Position, SufferDamage,
-        WantsToMelee,
+        CombatStats, DefenseBonus, Equipped, HungerClock, HungerState, MeleePowerBonus, Name,
+        Position, SufferDamage, WantsToMelee,
     },
     gamelog::GameLog,
     particle::ParticleBuilder,
@@ -12,7 +12,13 @@ use crate::{
 
 pub fn melee_combat_system(
     mut commands: Commands,
-    mut attackers: Query<(Entity, &WantsToMelee, &Name, &CombatStats)>,
+    mut attackers: Query<(
+        Entity,
+        &WantsToMelee,
+        &Name,
+        &CombatStats,
+        Option<&HungerClock>,
+    )>,
     combatants: Query<&CombatStats>,
     power_bonuses: Query<(&MeleePowerBonus, &Equipped)>,
     defense_bonuses: Query<(&DefenseBonus, &Equipped)>,
@@ -22,7 +28,7 @@ pub fn melee_combat_system(
     mut log: ResMut<GameLog>,
     mut particle: ResMut<ParticleBuilder>,
 ) {
-    for (attacker, wants_melee, name, stats) in attackers.iter_mut() {
+    for (attacker, wants_melee, name, stats, hunger) in attackers.iter_mut() {
         let victim = wants_melee.target;
         let target_stats = combatants.get(victim).unwrap();
         if target_stats.hp > 0 {
@@ -32,6 +38,12 @@ pub fn melee_combat_system(
             for (bonus, equipped) in power_bonuses.iter() {
                 if equipped.owner == attacker {
                     power += bonus.power;
+                }
+            }
+
+            if let Some(hunger) = hunger {
+                if hunger.state == HungerState::WellFed {
+                    power += 1;
                 }
             }
 

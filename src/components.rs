@@ -181,3 +181,20 @@ pub struct WantsToRemoveItem {
 pub struct ParticleLifetime {
     pub lifetime_ms: f32,
 }
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
+pub enum HungerState {
+    WellFed,
+    Normal,
+    Hungry,
+    Starving,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct HungerClock {
+    pub state: HungerState,
+    pub duration: i32,
+}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct ProvidesFood {}

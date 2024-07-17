@@ -2,14 +2,15 @@ use std::collections::HashMap;
 
 use bevy_ecs::prelude::*;
 use rltk::{
-    to_cp437, FontCharType, RandomNumberGenerator, BLACK, CYAN, MAGENTA, ORANGE, PINK, RED, YELLOW,
+    to_cp437, FontCharType, RandomNumberGenerator, BLACK, CYAN, GREEN, MAGENTA, ORANGE, PINK, RED,
+    YELLOW,
 };
 
 use crate::{
     components::{
         AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, DefenseBonus, EquipmentSlot,
-        Equippable, InflictsDamage, Item, MeleePowerBonus, Monster, Name, Player, Position,
-        ProvidesHealing, Ranged, Renderable, Viewshed,
+        Equippable, HungerClock, HungerState, InflictsDamage, Item, MeleePowerBonus, Monster, Name,
+        Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable, Viewshed,
     },
     map::MAPWIDTH,
     random_table::RandomTable,
@@ -45,6 +46,10 @@ pub fn player(world: &mut World, player_x: i32, player_y: i32) {
             hp: 30,
             defense: 2,
             power: 5,
+        },
+        HungerClock {
+            state: HungerState::WellFed,
+            duration: 20,
         },
     ));
 }
@@ -96,6 +101,7 @@ fn room_table(map_depth: i32) -> RandomTable {
         .add("Shield", 3)
         .add("Longsword", map_depth - 1)
         .add("Tower Shield", map_depth - 1)
+        .add("Rations", 10)
 }
 
 /// Fills a room with stuff!
@@ -141,6 +147,7 @@ pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
             "Shield" => shield(world, x, y),
             "Longsword" => longsword(world, x, y),
             "Tower Shield" => tower_shield(world, x, y),
+            "Rations" => rations(world, x, y),
             _ => {}
         }
     }
@@ -299,5 +306,23 @@ fn tower_shield(world: &mut World, x: i32, y: i32) {
             slot: EquipmentSlot::Shield,
         },
         DefenseBonus { defense: 3 },
+    ));
+}
+
+fn rations(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('%'),
+            fg: GREEN,
+            bg: BLACK,
+            render_order: 10,
+        },
+        Name {
+            name: "Rations".to_string(),
+        },
+        Item {},
+        ProvidesFood {},
+        Consumable {},
     ));
 }

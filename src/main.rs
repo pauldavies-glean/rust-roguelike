@@ -4,6 +4,7 @@ mod components;
 mod damage;
 mod gamelog;
 mod gui;
+mod hunger;
 mod inventory;
 mod map;
 mod particle;
@@ -377,6 +378,7 @@ fn main() -> BError {
             inventory::item_use_system,
             inventory::drop_system,
             inventory::item_remove_system,
+            hunger::hunger_system,
             player::player_input_system,
             inventory::inventory_system,
             visibility::visibility_system,
