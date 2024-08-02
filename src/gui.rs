@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use rltk::{
     to_cp437, DistanceAlg, FontCharType, Point, Rltk, VirtualKeyCode, BLACK, BLUE, CYAN, GREEN,
-    GREY, MAGENTA, ORANGE, RED, WHITE, YELLOW,
+    GREY, MAGENTA, ORANGE, RED, WHEAT, WHITE, YELLOW,
 };
 
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
     },
     gamelog::GameLog,
     map::Map,
+    rex_assets::RexAssets,
     saveload,
 };
 
@@ -276,28 +277,43 @@ pub fn ranged_target(
     (ItemMenuResult::NoResponse, None)
 }
 
-pub fn main_menu(selection: MainMenuSelection, ctx: &mut Rltk) -> MainMenuResult {
+pub fn main_menu(
+    selection: MainMenuSelection,
+    ctx: &mut Rltk,
+    assets: &RexAssets,
+) -> MainMenuResult {
     let save_exists = saveload::does_save_exist();
 
-    ctx.print_color_centered(15, rltk::YELLOW, rltk::BLACK, "Rust Roguelike Tutorial");
+    ctx.render_xp_sprite(&assets.menu, 0, 0);
+
+    ctx.draw_box_double(24, 18, 31, 10, WHEAT, BLACK);
+
+    ctx.print_color_centered(20, rltk::YELLOW, rltk::BLACK, "Rust Roguelike Tutorial");
+    ctx.print_color_centered(21, rltk::CYAN, rltk::BLACK, "by Lag.Com");
+    ctx.print_color_centered(22, rltk::GREY, rltk::BLACK, "Use Up/Down Arrows and Enter");
+
+    let mut y = 24;
 
     if selection == MainMenuSelection::NewGame {
-        ctx.print_color_centered(24, rltk::MAGENTA, rltk::BLACK, "Begin New Game");
+        ctx.print_color_centered(y, rltk::MAGENTA, rltk::BLACK, "Begin New Game");
     } else {
-        ctx.print_color_centered(24, rltk::WHITE, rltk::BLACK, "Begin New Game");
+        ctx.print_color_centered(y, rltk::WHITE, rltk::BLACK, "Begin New Game");
     }
+    y += 1;
 
     if save_exists {
         if selection == MainMenuSelection::LoadGame {
-            ctx.print_color_centered(25, rltk::MAGENTA, rltk::BLACK, "Load Game");
+            ctx.print_color_centered(y, rltk::MAGENTA, rltk::BLACK, "Load Game");
         } else {
-            ctx.print_color_centered(25, rltk::WHITE, rltk::BLACK, "Load Game");
+            ctx.print_color_centered(y, rltk::WHITE, rltk::BLACK, "Load Game");
         }
+        y += 1;
     }
+
     if selection == MainMenuSelection::Quit {
-        ctx.print_color_centered(26, rltk::MAGENTA, rltk::BLACK, "Quit");
+        ctx.print_color_centered(y, rltk::MAGENTA, rltk::BLACK, "Quit");
     } else {
-        ctx.print_color_centered(26, rltk::WHITE, rltk::BLACK, "Quit");
+        ctx.print_color_centered(y, rltk::WHITE, rltk::BLACK, "Quit");
     }
 
     match ctx.key {

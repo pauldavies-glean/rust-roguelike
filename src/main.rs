@@ -11,6 +11,7 @@ mod particle;
 mod player;
 mod random_table;
 mod rect;
+mod rex_assets;
 mod saveload;
 mod spawner;
 mod visibility;
@@ -24,6 +25,7 @@ use components::{
 };
 use gamelog::GameLog;
 use map::{Map, MAPCOUNT, MAPHEIGHT, MAPWIDTH};
+use rex_assets::RexAssets;
 use rltk::{
     main_loop, BError, GameState, RandomNumberGenerator, Rltk, RltkBuilder, VirtualKeyCode,
 };
@@ -183,7 +185,8 @@ impl GameState for State {
 
         match state {
             RunState::MainMenu { menu_selection } => {
-                let result = gui::main_menu(menu_selection, ctx);
+                let result =
+                    gui::main_menu(menu_selection, ctx, self.world.resource::<RexAssets>());
                 match result {
                     gui::MainMenuResult::NoSelection { selected } => {
                         new_state = RunState::MainMenu {
@@ -386,6 +389,7 @@ fn main() -> BError {
         menu_selection: gui::MainMenuSelection::NewGame,
     });
     world.insert_resource(particle::ParticleBuilder::new());
+    world.insert_resource(RexAssets::new());
 
     let mut state = State {
         world,
