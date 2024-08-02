@@ -198,3 +198,6 @@ pub struct HungerClock {
 
 #[derive(Clone, Component, Serialize, Deserialize)]
 pub struct ProvidesFood {}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct MagicMapper {}

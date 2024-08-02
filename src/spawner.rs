@@ -2,15 +2,16 @@ use std::collections::HashMap;
 
 use bevy_ecs::prelude::*;
 use rltk::{
-    to_cp437, FontCharType, RandomNumberGenerator, BLACK, CYAN, GREEN, MAGENTA, ORANGE, PINK, RED,
-    YELLOW,
+    to_cp437, FontCharType, RandomNumberGenerator, BLACK, CYAN, CYAN3, GREEN, MAGENTA, ORANGE,
+    PINK, RED, YELLOW,
 };
 
 use crate::{
     components::{
         AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, DefenseBonus, EquipmentSlot,
-        Equippable, HungerClock, HungerState, InflictsDamage, Item, MeleePowerBonus, Monster, Name,
-        Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable, Viewshed,
+        Equippable, HungerClock, HungerState, InflictsDamage, Item, MagicMapper, MeleePowerBonus,
+        Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable,
+        Viewshed,
     },
     map::MAPWIDTH,
     random_table::RandomTable,
@@ -102,6 +103,7 @@ fn room_table(map_depth: i32) -> RandomTable {
         .add("Longsword", map_depth - 1)
         .add("Tower Shield", map_depth - 1)
         .add("Rations", 10)
+        .add("Magic Mapping Scroll", 2)
 }
 
 /// Fills a room with stuff!
@@ -148,6 +150,7 @@ pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
             "Longsword" => longsword(world, x, y),
             "Tower Shield" => tower_shield(world, x, y),
             "Rations" => rations(world, x, y),
+            "Magic Mapping Scroll" => magic_mapping_scroll(world, x, y),
             _ => {}
         }
     }
@@ -323,6 +326,24 @@ fn rations(world: &mut World, x: i32, y: i32) {
         },
         Item {},
         ProvidesFood {},
+        Consumable {},
+    ));
+}
+
+fn magic_mapping_scroll(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437(')'),
+            fg: CYAN3,
+            bg: BLACK,
+            render_order: 10,
+        },
+        Name {
+            name: "Scroll of Magic Mapping".to_string(),
+        },
+        Item {},
+        MagicMapper {},
         Consumable {},
     ));
 }

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         AreaOfEffect, BlocksTile, CombatStats, Confused, Confusion, Consumable, DefenseBonus,
-        Equippable, Equipped, HungerClock, InBackpack, InflictsDamage, Item, MeleePowerBonus,
-        Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable,
-        Viewshed,
+        Equippable, Equipped, HungerClock, InBackpack, InflictsDamage, Item, MagicMapper,
+        MeleePowerBonus, Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged,
+        Renderable, Viewshed,
     },
     map::{Map, MAPCOUNT},
 };
@@ -29,6 +29,7 @@ struct EntityRecord {
     in_backpack: Option<InBackpack>,
     inflicts_damage: Option<InflictsDamage>,
     item: Option<Item>,
+    magic_mapper: Option<MagicMapper>,
     melee_power_bonus: Option<MeleePowerBonus>,
     monster: Option<Monster>,
     name: Option<Name>,
@@ -69,6 +70,7 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             in_backpack: e.get::<InBackpack>().cloned(),
             inflicts_damage: e.get::<InflictsDamage>().cloned(),
             item: e.get::<Item>().cloned(),
+            magic_mapper: e.get::<MagicMapper>().cloned(),
             melee_power_bonus: e.get::<MeleePowerBonus>().cloned(),
             monster: e.get::<Monster>().cloned(),
             name: e.get::<Name>().cloned(),
@@ -147,6 +149,9 @@ pub fn load_game(world: &mut World) {
             e.insert(c);
         }
         if let Some(c) = entity.item {
+            e.insert(c);
+        }
+        if let Some(c) = entity.magic_mapper {
             e.insert(c);
         }
         if let Some(c) = entity.melee_power_bonus {

@@ -4,13 +4,14 @@ use rltk::{to_cp437, BLACK, GREEN, MAGENTA, ORANGE, RED};
 use crate::{
     components::{
         AreaOfEffect, CombatStats, Confused, Confusion, Consumable, Equippable, Equipped,
-        HungerClock, HungerState, InBackpack, InflictsDamage, Item, Name, Player, Position,
-        ProvidesFood, ProvidesHealing, SufferDamage, WantsToDropItem, WantsToPickupItem,
+        HungerClock, HungerState, InBackpack, InflictsDamage, Item, MagicMapper, Name, Player,
+        Position, ProvidesFood, ProvidesHealing, SufferDamage, WantsToDropItem, WantsToPickupItem,
         WantsToRemoveItem, WantsToUseItem,
     },
     gamelog::GameLog,
     map::Map,
     particle::ParticleBuilder,
+    RunState,
 };
 
 pub fn inventory_system(
@@ -53,6 +54,7 @@ pub fn item_use_system(
         Option<&InflictsDamage>,
         Option<&Confusion>,
         Option<&ProvidesFood>,
+        Option<&MagicMapper>,
         Option<&AreaOfEffect>,
     )>,
     equippables: Query<(&Name, &Equippable)>,
@@ -60,9 +62,10 @@ pub fn item_use_system(
     mut log: ResMut<GameLog>,
     map: Res<Map>,
     mut particle: ResMut<ParticleBuilder>,
+    mut state: ResMut<RunState>,
 ) {
     for (user, use_item, hunger, player) in users.iter_mut() {
-        if let Ok((item_name, consumable, healing, inflict, confusion, edible, aoe)) =
+        if let Ok((item_name, consumable, healing, inflict, confusion, edible, mapping, aoe)) =
             consumables.get(use_item.item)
         {
             // Targeting
@@ -194,6 +197,12 @@ pub fn item_use_system(
                         log.entries.push(format!("You eat the {}.", item_name.name));
                     }
                 }
+            }
+
+            if mapping.is_some() {
+                used_up = true;
+                log.entries.push("The map is revealed to you!".to_string());
+                *state = RunState::MagicMapReveal { row: 0 };
             }
 
             if used_up && consumable.is_some() {

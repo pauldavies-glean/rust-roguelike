@@ -23,7 +23,7 @@ use components::{
     WantsToDropItem, WantsToRemoveItem, WantsToUseItem,
 };
 use gamelog::GameLog;
-use map::{Map, MAPCOUNT};
+use map::{Map, MAPCOUNT, MAPHEIGHT, MAPWIDTH};
 use rltk::{
     main_loop, BError, GameState, RandomNumberGenerator, Rltk, RltkBuilder, VirtualKeyCode,
 };
@@ -156,6 +156,9 @@ pub enum RunState {
     NextLevel,
     ShowRemoveItem,
     GameOver,
+    MagicMapReveal {
+        row: i32,
+    },
 }
 
 impl GameState for State {
@@ -174,6 +177,7 @@ impl GameState for State {
             },
             RunState::ShowRemoveItem => state,
             RunState::GameOver => state,
+            RunState::MagicMapReveal { row } => RunState::MagicMapReveal { row: row + 1 },
             _ => RunState::AwaitingInput,
         };
 
@@ -229,6 +233,21 @@ impl GameState for State {
                         }
                     }
                 }
+            }
+
+            RunState::MagicMapReveal { row } => {
+                let mut map = self.world.resource_mut::<Map>();
+                for x in 0..MAPWIDTH {
+                    let idx = map.xy_idx(x as i32, row);
+                    map.revealed_tiles[idx] = true;
+                }
+
+                if row as usize >= MAPHEIGHT - 1 {
+                    new_state = RunState::MonsterTurn;
+                }
+
+                map.draw(ctx);
+                gui::draw_ui(&mut self.world, ctx);
             }
 
             _ => {
