@@ -4,8 +4,9 @@ use rltk::{to_cp437, BLACK, ORANGE};
 use crate::{
     components::{
         CombatStats, DefenseBonus, Equipped, HungerClock, HungerState, MeleePowerBonus, Name,
-        Position, SufferDamage, WantsToMelee,
+        Position, WantsToMelee,
     },
+    damage::DamageEvent,
     gamelog::GameLog,
     particle::ParticleBuilder,
 };
@@ -22,11 +23,11 @@ pub fn melee_combat_system(
     combatants: Query<&CombatStats>,
     power_bonuses: Query<(&MeleePowerBonus, &Equipped)>,
     defense_bonuses: Query<(&DefenseBonus, &Equipped)>,
-    mut sufferers: Query<&mut SufferDamage>,
     names: Query<&Name>,
     positions: Query<&Position>,
     mut log: ResMut<GameLog>,
     mut particle: ResMut<ParticleBuilder>,
+    mut damage_writer: EventWriter<DamageEvent>,
 ) {
     for (attacker, wants_melee, name, stats, hunger) in attackers.iter_mut() {
         let victim = wants_melee.target;
@@ -71,13 +72,10 @@ pub fn melee_combat_system(
                     &name.name, &target_name.name, damage
                 ));
 
-                SufferDamage::new_damage(
-                    commands.entity(victim),
-                    sufferers
-                        .get_mut(victim)
-                        .map_or(None, |x| Some(x.into_inner())),
-                    damage,
-                );
+                damage_writer.send(DamageEvent {
+                    who: victim,
+                    value: damage,
+                });
             }
         }
 

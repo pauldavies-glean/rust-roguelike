@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         AreaOfEffect, BlocksTile, CombatStats, Confused, Confusion, Consumable, DefenseBonus,
-        Equippable, Equipped, HungerClock, InBackpack, InflictsDamage, Item, MagicMapper,
-        MeleePowerBonus, Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged,
-        Renderable, Viewshed,
+        EntryTrigger, Equippable, Equipped, Hidden, HungerClock, InBackpack, InflictsDamage, Item,
+        MagicMapper, MeleePowerBonus, Monster, Name, Player, Position, ProvidesFood,
+        ProvidesHealing, Ranged, Renderable, SingleActivation, Viewshed,
     },
     map::{Map, MAPCOUNT},
 };
@@ -23,8 +23,10 @@ struct EntityRecord {
     confusion: Option<Confusion>,
     consumable: Option<Consumable>,
     defense_bonus: Option<DefenseBonus>,
+    entry_trigger: Option<EntryTrigger>,
     equippable: Option<Equippable>,
     equipped: Option<Equipped>,
+    hidden: Option<Hidden>,
     hunger_clock: Option<HungerClock>,
     in_backpack: Option<InBackpack>,
     inflicts_damage: Option<InflictsDamage>,
@@ -39,6 +41,7 @@ struct EntityRecord {
     provides_healing: Option<ProvidesHealing>,
     ranged: Option<Ranged>,
     renderable: Option<Renderable>,
+    single_activation: Option<SingleActivation>,
     viewshed: Option<Viewshed>,
 }
 
@@ -64,8 +67,10 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             confusion: e.get::<Confusion>().cloned(),
             consumable: e.get::<Consumable>().cloned(),
             defense_bonus: e.get::<DefenseBonus>().cloned(),
+            entry_trigger: e.get::<EntryTrigger>().cloned(),
             equippable: e.get::<Equippable>().cloned(),
             equipped: e.get::<Equipped>().cloned(),
+            hidden: e.get::<Hidden>().cloned(),
             hunger_clock: e.get::<HungerClock>().cloned(),
             in_backpack: e.get::<InBackpack>().cloned(),
             inflicts_damage: e.get::<InflictsDamage>().cloned(),
@@ -80,6 +85,7 @@ pub fn save_game(world: &mut World) -> Result<(), serde_json::Error> {
             provides_healing: e.get::<ProvidesHealing>().cloned(),
             ranged: e.get::<Ranged>().cloned(),
             renderable: e.get::<Renderable>().cloned(),
+            single_activation: e.get::<SingleActivation>().cloned(),
             viewshed: e.get::<Viewshed>().cloned(),
         })
         .collect();
@@ -133,10 +139,16 @@ pub fn load_game(world: &mut World) {
         if let Some(c) = entity.defense_bonus {
             e.insert(c);
         }
+        if let Some(c) = entity.entry_trigger {
+            e.insert(c);
+        }
         if let Some(c) = entity.equippable {
             e.insert(c);
         }
         if let Some(c) = entity.equipped {
+            e.insert(c);
+        }
+        if let Some(c) = entity.hidden {
             e.insert(c);
         }
         if let Some(c) = entity.hunger_clock {
@@ -179,6 +191,9 @@ pub fn load_game(world: &mut World) {
             e.insert(c);
         }
         if let Some(c) = entity.renderable {
+            e.insert(c);
+        }
+        if let Some(c) = entity.single_activation {
             e.insert(c);
         }
         if let Some(c) = entity.viewshed {

@@ -14,15 +14,17 @@ mod rect;
 mod rex_assets;
 mod saveload;
 mod spawner;
+mod triggers;
 mod visibility;
 
 extern crate serde;
 
 use bevy_ecs::prelude::*;
 use components::{
-    CombatStats, Equipped, InBackpack, Player, Position, Ranged, Renderable, Viewshed,
+    CombatStats, Equipped, Hidden, InBackpack, Player, Position, Ranged, Renderable, Viewshed,
     WantsToDropItem, WantsToRemoveItem, WantsToUseItem,
 };
+use damage::DamageEvent;
 use gamelog::GameLog;
 use map::{Map, MAPCOUNT, MAPHEIGHT, MAPWIDTH};
 use rex_assets::RexAssets;
@@ -134,6 +136,26 @@ impl State {
 
     fn game_over_cleanup(&mut self) {
         self.world.clear_entities();
+    }
+
+    fn draw_to_screen(&mut self, ctx: &mut Rltk) {
+        let mut things = self
+            .world
+            .query_filtered::<(&Position, &Renderable), Without<Hidden>>();
+
+        let map = self.world.resource::<Map>();
+        map.draw(ctx);
+
+        let mut priority = vec![100; MAPCOUNT];
+        for (pos, render) in things.iter(&self.world) {
+            let idx = map.xy_idx(pos.x, pos.y);
+            if map.visible_tiles[idx] && priority[idx] > render.render_order {
+                ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+                priority[idx] = render.render_order
+            }
+        }
+
+        gui::draw_ui(&mut self.world, ctx);
     }
 }
 
@@ -249,8 +271,7 @@ impl GameState for State {
                     new_state = RunState::MonsterTurn;
                 }
 
-                map.draw(ctx);
-                gui::draw_ui(&mut self.world, ctx);
+                self.draw_to_screen(ctx);
             }
 
             _ => {
@@ -259,21 +280,7 @@ impl GameState for State {
                     .insert_non_send_resource::<FrameTime>(ctx.frame_time_ms);
                 self.schedule.run(&mut self.world);
 
-                let mut things = self.world.query::<(&Position, &Renderable)>();
-
-                let map = self.world.resource::<Map>();
-                map.draw(ctx);
-
-                let mut priority = vec![100; MAPCOUNT];
-                for (pos, render) in things.iter(&self.world) {
-                    let idx = map.xy_idx(pos.x, pos.y);
-                    if map.visible_tiles[idx] && priority[idx] > render.render_order {
-                        ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
-                        priority[idx] = render.render_order
-                    }
-                }
-
-                gui::draw_ui(&mut self.world, ctx);
+                self.draw_to_screen(ctx);
             }
         }
 
@@ -391,6 +398,8 @@ fn main() -> BError {
     world.insert_resource(particle::ParticleBuilder::new());
     world.insert_resource(RexAssets::new());
 
+    world.insert_resource(Events::<DamageEvent>::default());
+
     let mut state = State {
         world,
         schedule: Schedule::default(),
@@ -407,7 +416,9 @@ fn main() -> BError {
             visibility::visibility_system,
             player::waiting_system,
             ai::monster_ai_system,
+            triggers::trigger_system,
             combat::melee_combat_system,
+            damage::damage_event_reader,
             damage::damage_system,
             map::map_indexing_system,
             particle::cull_dead_particles_system,

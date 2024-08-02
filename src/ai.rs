@@ -2,7 +2,9 @@ use bevy_ecs::prelude::*;
 use rltk::{a_star_search, to_cp437, DistanceAlg, Point, BLACK, MAGENTA};
 
 use crate::{
-    components::{AsPoint, Confused, Monster, Player, Position, Viewshed, WantsToMelee},
+    components::{
+        AsPoint, Confused, EntityMoved, Monster, Player, Position, Viewshed, WantsToMelee,
+    },
     map::Map,
     particle::ParticleBuilder,
     RunState,
@@ -56,6 +58,7 @@ pub fn monster_ai_system(
                     let next_idx = path.steps[1];
                     pos.x = next_idx as i32 % map.width;
                     pos.y = next_idx as i32 / map.width;
+                    commands.entity(monster).insert(EntityMoved {});
                     viewshed.dirty = true;
 
                     map.blocked[start_idx] = false;

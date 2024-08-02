@@ -6,7 +6,7 @@ use rltk::{
 
 use crate::{
     components::{
-        AsPoint, CombatStats, Equipped, HungerClock, HungerState, InBackpack, Name, Player,
+        AsPoint, CombatStats, Equipped, Hidden, HungerClock, HungerState, InBackpack, Name, Player,
         Position, Viewshed,
     },
     gamelog::GameLog,
@@ -61,7 +61,10 @@ pub fn draw_ui(world: &mut World, ctx: &mut Rltk) {
         y += 1;
     }
 
-    let named_entities = world.query::<(&Name, &Position)>().iter(world).collect();
+    let named_entities = world
+        .query_filtered::<(&Name, &Position), Without<Hidden>>()
+        .iter(world)
+        .collect();
     draw_tooltips(world, ctx, named_entities);
 }
 

@@ -8,10 +8,10 @@ use rltk::{
 
 use crate::{
     components::{
-        AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, DefenseBonus, EquipmentSlot,
-        Equippable, HungerClock, HungerState, InflictsDamage, Item, MagicMapper, MeleePowerBonus,
-        Monster, Name, Player, Position, ProvidesFood, ProvidesHealing, Ranged, Renderable,
-        Viewshed,
+        AreaOfEffect, BlocksTile, CombatStats, Confusion, Consumable, DefenseBonus, EntryTrigger,
+        EquipmentSlot, Equippable, Hidden, HungerClock, HungerState, InflictsDamage, Item,
+        MagicMapper, MeleePowerBonus, Monster, Name, Player, Position, ProvidesFood,
+        ProvidesHealing, Ranged, Renderable, SingleActivation, Viewshed,
     },
     map::MAPWIDTH,
     random_table::RandomTable,
@@ -104,6 +104,7 @@ fn room_table(map_depth: i32) -> RandomTable {
         .add("Tower Shield", map_depth - 1)
         .add("Rations", 10)
         .add("Magic Mapping Scroll", 2)
+        .add("Bear Trap", 2)
 }
 
 /// Fills a room with stuff!
@@ -151,6 +152,7 @@ pub fn spawn_room(world: &mut World, room: &Rect, map_depth: i32) {
             "Tower Shield" => tower_shield(world, x, y),
             "Rations" => rations(world, x, y),
             "Magic Mapping Scroll" => magic_mapping_scroll(world, x, y),
+            "Bear Trap" => bear_trap(world, x, y),
             _ => {}
         }
     }
@@ -345,5 +347,24 @@ fn magic_mapping_scroll(world: &mut World, x: i32, y: i32) {
         Item {},
         MagicMapper {},
         Consumable {},
+    ));
+}
+
+fn bear_trap(world: &mut World, x: i32, y: i32) {
+    world.spawn((
+        Position { x, y },
+        Renderable {
+            glyph: to_cp437('^'),
+            fg: RED,
+            bg: BLACK,
+            render_order: 9,
+        },
+        Name {
+            name: "Bear Trap".to_string(),
+        },
+        Hidden {},
+        EntryTrigger {},
+        SingleActivation {},
+        InflictsDamage { damage: 6 },
     ));
 }

@@ -6,7 +6,8 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 
 use crate::components::{
-    HungerClock, HungerState, Item, Monster, Player, Waiting, WantsToMelee, WantsToPickupItem,
+    EntityMoved, HungerClock, HungerState, Item, Monster, Player, Waiting, WantsToMelee,
+    WantsToPickupItem,
 };
 use crate::gamelog::GameLog;
 use crate::map::TileType;
@@ -37,6 +38,7 @@ fn try_move_player(
     if !map.blocked[destination_idx] {
         pos.x = min(79, max(0, pos.x + delta_x));
         pos.y = min(49, max(0, pos.y + delta_y));
+        commands.insert(EntityMoved {});
 
         viewshed.dirty = true;
         return true;

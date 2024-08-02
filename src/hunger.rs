@@ -1,23 +1,19 @@
 use bevy_ecs::prelude::*;
 
 use crate::{
-    components::{HungerClock, HungerState, Player, SufferDamage},
+    components::{HungerClock, HungerState, Player},
+    damage::DamageEvent,
     gamelog::GameLog,
     RunState,
 };
 
 pub fn hunger_system(
-    mut commands: Commands,
-    mut hungry: Query<(
-        Entity,
-        &mut HungerClock,
-        Option<&Player>,
-        Option<&mut SufferDamage>,
-    )>,
+    mut hungry: Query<(Entity, &mut HungerClock, Option<&Player>)>,
     state: Res<RunState>,
     mut log: ResMut<GameLog>,
+    mut damage_writer: EventWriter<DamageEvent>,
 ) {
-    for (entity, mut clock, player, suffering) in hungry.iter_mut() {
+    for (entity, mut clock, player) in hungry.iter_mut() {
         let proceed = match *state {
             RunState::PlayerTurn => player.is_some(),
             RunState::MonsterTurn => player.is_none(),
@@ -46,7 +42,7 @@ pub fn hunger_system(
                         clock.state = HungerState::Starving;
                         clock.duration = 200;
                         if player.is_some() {
-                            log.entries.push("You are staving!".to_string())
+                            log.entries.push("You are starving!".to_string())
                         }
                     }
                     HungerState::Starving => {
@@ -57,11 +53,10 @@ pub fn hunger_system(
                                     .to_string(),
                             )
                         }
-                        SufferDamage::new_damage(
-                            commands.entity(entity),
-                            suffering.map_or(None, |x| Some(x.into_inner())),
-                            1,
-                        )
+                        damage_writer.send(DamageEvent {
+                            who: entity,
+                            value: 1,
+                        });
                     }
                 }
             }

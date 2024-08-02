@@ -5,9 +5,10 @@ use crate::{
     components::{
         AreaOfEffect, CombatStats, Confused, Confusion, Consumable, Equippable, Equipped,
         HungerClock, HungerState, InBackpack, InflictsDamage, Item, MagicMapper, Name, Player,
-        Position, ProvidesFood, ProvidesHealing, SufferDamage, WantsToDropItem, WantsToPickupItem,
+        Position, ProvidesFood, ProvidesHealing, WantsToDropItem, WantsToPickupItem,
         WantsToRemoveItem, WantsToUseItem,
     },
+    damage::DamageEvent,
     gamelog::GameLog,
     map::Map,
     particle::ParticleBuilder,
@@ -46,7 +47,7 @@ pub fn item_use_system(
         Option<&Player>,
     )>,
     mut combatants: Query<(&mut CombatStats, Option<&Position>)>,
-    mut mobs: Query<(&Name, Option<&mut SufferDamage>, Option<&Position>)>,
+    mut mobs: Query<(&Name, Option<&Position>)>,
     consumables: Query<(
         &Name,
         Option<&Consumable>,
@@ -63,6 +64,7 @@ pub fn item_use_system(
     map: Res<Map>,
     mut particle: ResMut<ParticleBuilder>,
     mut state: ResMut<RunState>,
+    mut damage_writer: EventWriter<DamageEvent>,
 ) {
     for (user, use_item, hunger, player) in users.iter_mut() {
         if let Ok((item_name, consumable, healing, inflict, confusion, edible, mapping, aoe)) =
@@ -140,14 +142,13 @@ pub fn item_use_system(
 
             if let Some(inflict) = inflict {
                 for target in targets.iter() {
-                    if let Ok((mob_name, suffering, pos)) = mobs.get_mut(*target) {
+                    if let Ok((mob_name, pos)) = mobs.get_mut(*target) {
                         used_up = true;
 
-                        SufferDamage::new_damage(
-                            commands.entity(*target),
-                            suffering.map_or(None, |x| Some(x.into_inner())),
-                            inflict.damage,
-                        );
+                        damage_writer.send(DamageEvent {
+                            who: *target,
+                            value: inflict.damage,
+                        });
 
                         if player.is_some() {
                             log.entries.push(format!(
@@ -165,7 +166,7 @@ pub fn item_use_system(
 
             if let Some(confusion) = confusion {
                 for target in targets.iter() {
-                    if let Ok((mob_name, _suffering, pos)) = mobs.get_mut(*target) {
+                    if let Ok((mob_name, pos)) = mobs.get_mut(*target) {
                         used_up = true;
 
                         commands.entity(*target).insert(Confused {

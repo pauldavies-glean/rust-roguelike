@@ -7,6 +7,28 @@ use crate::{
     RunState,
 };
 
+#[derive(Event)]
+pub struct DamageEvent {
+    pub who: Entity,
+    pub value: i32,
+}
+
+pub fn damage_event_reader(
+    mut commands: Commands,
+    mut reader: EventReader<DamageEvent>,
+    mut sufferers: Query<&mut SufferDamage>,
+) {
+    for event in reader.read() {
+        if let Ok(mut suffer) = sufferers.get_mut(event.who) {
+            suffer.amount.push(event.value);
+        } else {
+            commands.entity(event.who).insert(SufferDamage {
+                amount: vec![event.value],
+            });
+        }
+    }
+}
+
 pub fn damage_system(
     mut commands: Commands,
     mut victims: Query<(

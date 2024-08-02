@@ -1,4 +1,4 @@
-use bevy_ecs::{prelude::*, system::EntityCommands};
+use bevy_ecs::prelude::*;
 use rltk::{FontCharType, Point};
 use serde::{Deserialize, Serialize};
 
@@ -66,22 +66,6 @@ pub struct WantsToMelee {
 #[derive(Component)]
 pub struct SufferDamage {
     pub amount: Vec<i32>,
-}
-
-impl SufferDamage {
-    pub fn new_damage(
-        mut commands: EntityCommands,
-        victim_suffering: Option<&mut SufferDamage>,
-        value: i32,
-    ) {
-        if let Some(suffering) = victim_suffering {
-            suffering.amount.push(value);
-        } else {
-            commands.insert(SufferDamage {
-                amount: vec![value],
-            });
-        }
-    }
 }
 
 #[derive(Clone, Component, Default, Serialize, Deserialize)]
@@ -201,3 +185,15 @@ pub struct ProvidesFood {}
 
 #[derive(Clone, Component, Serialize, Deserialize)]
 pub struct MagicMapper {}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct Hidden {}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct EntryTrigger {}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct EntityMoved {}
+
+#[derive(Clone, Component, Serialize, Deserialize)]
+pub struct SingleActivation {}
