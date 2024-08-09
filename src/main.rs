@@ -7,6 +7,7 @@ mod gui;
 mod hunger;
 mod inventory;
 mod map;
+mod map_builders;
 mod particle;
 mod player;
 mod random_table;
@@ -80,23 +81,19 @@ impl State {
     }
 
     fn init_game(&mut self) {
-        let map = self.create_map(1);
-
-        let (player_x, player_y) = map.rooms[0].center();
-        spawner::player(&mut self.world, player_x, player_y);
+        let start = self.create_map(1);
+        spawner::player(&mut self.world, start.x, start.y);
     }
 
-    fn create_map(&mut self, new_depth: i32) -> Map {
-        let mut rng = self.world.non_send_resource_mut::<RandomNumberGenerator>();
-        let map = Map::new_map_rooms_and_corridors(new_depth, &mut rng);
-        self.world.insert_resource(map.clone()); // TODO this is stupid
+    fn create_map(&mut self, new_depth: i32) -> Position {
+        let mut builder = map_builders::random_builder(new_depth);
 
-        // don't put a monster where the player is!
-        for room in map.rooms.iter().skip(1) {
-            spawner::spawn_room(&mut self.world, room, new_depth);
-        }
+        builder.build_map();
+        builder.spawn_entities(&mut self.world);
 
-        map
+        self.world.insert_resource(builder.get_map()); // TODO this is stupid
+
+        builder.get_starting_position()
     }
 
     fn goto_next_level(&mut self) {
@@ -109,7 +106,7 @@ impl State {
         // Build a new map and place the player
         let old_map = self.world.resource::<Map>();
         let current_depth = old_map.depth;
-        let new_map = self.create_map(current_depth + 1);
+        let start = self.create_map(current_depth + 1);
 
         // Find the player
         let (mut player_position, mut player_viewshed, mut player_stats) = self
@@ -118,9 +115,8 @@ impl State {
             .single_mut(&mut self.world);
 
         // Place the player and update resources
-        let (player_x, player_y) = new_map.rooms[0].center();
-        player_position.x = player_x;
-        player_position.y = player_y;
+        player_position.x = start.x;
+        player_position.y = start.y;
 
         // Mark the player's visibility as dirty
         player_viewshed.dirty = true;
