@@ -33,9 +33,14 @@ use rltk::{
     main_loop, BError, GameState, RandomNumberGenerator, Rltk, RltkBuilder, VirtualKeyCode,
 };
 
+const SHOW_MAPGEN_VISUALIZER: bool = false;
+
 struct State {
     world: World,
     schedule: Schedule,
+    mapgen_history: Vec<Map>,
+    mapgen_index: usize,
+    mapgen_timer: f32,
 }
 
 impl State {
@@ -86,9 +91,14 @@ impl State {
     }
 
     fn create_map(&mut self, new_depth: i32) -> Position {
-        let mut builder = map_builders::random_builder(new_depth);
+        self.mapgen_history.clear();
+        self.mapgen_index = 0;
+        self.mapgen_timer = 0.0;
 
+        let mut builder = map_builders::random_builder(new_depth);
         builder.build_map();
+        self.mapgen_history = builder.get_snapshot_history();
+
         builder.spawn_entities(&mut self.world);
 
         self.world.insert_resource(builder.get_map()); // TODO this is stupid
@@ -179,6 +189,7 @@ pub enum RunState {
     MagicMapReveal {
         row: i32,
     },
+    MapGeneration,
 }
 
 impl GameState for State {
@@ -197,6 +208,8 @@ impl GameState for State {
             },
             RunState::ShowRemoveItem => state,
             RunState::GameOver => state,
+            RunState::MapGeneration => state,
+            RunState::NextLevel => RunState::MapGeneration,
             RunState::MagicMapReveal { row } => RunState::MagicMapReveal { row: row + 1 },
             _ => RunState::AwaitingInput,
         };
@@ -217,7 +230,7 @@ impl GameState for State {
                                 entries: vec!["Welcome to Rusty Roguelike".to_string()],
                             });
                             self.init_game();
-                            new_state = RunState::AwaitingInput;
+                            new_state = RunState::MapGeneration;
                         }
                         gui::MainMenuSelection::LoadGame => {
                             saveload::load_game(&mut self.world);
@@ -268,6 +281,24 @@ impl GameState for State {
                 }
 
                 self.draw_to_screen(ctx);
+            }
+
+            RunState::MapGeneration => {
+                if !SHOW_MAPGEN_VISUALIZER {
+                    new_state = RunState::AwaitingInput;
+                } else {
+                    ctx.cls();
+                    self.mapgen_history[self.mapgen_index].draw(ctx);
+
+                    self.mapgen_timer += ctx.frame_time_ms;
+                    if self.mapgen_timer > 300.0 {
+                        self.mapgen_timer = 0.0;
+                        self.mapgen_index += 1;
+                        if self.mapgen_index >= self.mapgen_history.len() {
+                            new_state = RunState::AwaitingInput;
+                        }
+                    }
+                }
             }
 
             _ => {
@@ -399,6 +430,9 @@ fn main() -> BError {
     let mut state = State {
         world,
         schedule: Schedule::default(),
+        mapgen_index: 0,
+        mapgen_history: Vec::new(),
+        mapgen_timer: 0.0,
     };
 
     state.schedule.add_systems(
