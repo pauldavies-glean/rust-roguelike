@@ -15,7 +15,7 @@ use crate::{
     RunState,
 };
 
-pub fn inventory_system(
+pub fn item_collection_system(
     mut commands: Commands,
     wants_pickup: Query<(Entity, &WantsToPickupItem, Option<&Player>)>,
     items: Query<&Name, With<Item>>,
@@ -248,7 +248,7 @@ pub fn item_use_system(
     }
 }
 
-pub fn drop_system(
+pub fn item_drop_system(
     mut commands: Commands,
     droppers: Query<(Entity, &WantsToDropItem, &Position, Option<&Player>)>,
     items: Query<&Name, With<Item>>,

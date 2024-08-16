@@ -438,11 +438,11 @@ fn main() -> BError {
     state.schedule.add_systems(
         (
             inventory::item_use_system,
-            inventory::drop_system,
+            inventory::item_drop_system,
             inventory::item_remove_system,
             hunger::hunger_system,
             player::player_input_system,
-            inventory::inventory_system,
+            inventory::item_collection_system,
             visibility::visibility_system,
             player::waiting_system,
             ai::monster_ai_system,

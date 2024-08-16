@@ -52,8 +52,7 @@ pub fn monster_ai_system(
             } else if viewshed.visible_tiles.contains(&player_point) {
                 let start_idx = map.xy_idx(pos.x, pos.y);
 
-                let path =
-                    a_star_search(start_idx, map.xy_idx(player_pos.x, player_pos.y), &mut *map);
+                let path = a_star_search(start_idx, map.xy_idx(player_pos.x, player_pos.y), &*map);
                 if path.success && path.steps.len() > 1 {
                     let next_idx = path.steps[1];
                     pos.x = next_idx as i32 % map.width;
