@@ -98,10 +98,9 @@ impl State {
         let mut builder = map_builders::random_builder(new_depth);
         builder.build_map();
         self.mapgen_history = builder.get_snapshot_history();
+        self.world.insert_resource(builder.get_map());
 
         builder.spawn_entities(&mut self.world);
-
-        self.world.insert_resource(builder.get_map()); // TODO this is stupid
 
         builder.get_starting_position()
     }
