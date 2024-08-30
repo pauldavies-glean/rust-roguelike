@@ -9,7 +9,6 @@ pub struct RexAssets {
 }
 
 impl RexAssets {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> RexAssets {
         rltk::link_resource!(SMALL_DUNGEON, "../resources/rust.xp");
 
