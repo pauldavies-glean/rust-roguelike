@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use crate::components::{BlocksTile, Position};
 
-#[derive(PartialEq, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Serialize, Deserialize, Clone)]
 pub enum TileType {
     Wall,
     Floor,
