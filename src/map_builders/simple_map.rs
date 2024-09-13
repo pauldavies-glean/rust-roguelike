@@ -1,12 +1,7 @@
-use super::MapBuilder;
-use crate::{
-    components::Position,
-    map::{Map, TileType},
-    map_builders::common::{apply_horizontal_tunnel, apply_room_to_map, apply_vertical_tunnel},
-    rect::Rect,
+use super::{
+    apply_horizontal_tunnel, apply_room_to_map, apply_vertical_tunnel, spawner, Map, MapBuilder,
+    Position, Rect, TileType, SHOW_MAPGEN_VISUALIZER,
 };
-use crate::{spawner, SHOW_MAPGEN_VISUALIZER};
-use bevy_ecs::prelude::*;
 use rltk::RandomNumberGenerator;
 
 pub struct SimpleMapBuilder {
@@ -15,6 +10,7 @@ pub struct SimpleMapBuilder {
     depth: i32,
     rooms: Vec<Rect>,
     history: Vec<Map>,
+    spawn_list: Vec<(usize, String)>,
 }
 
 impl MapBuilder for SimpleMapBuilder {
@@ -26,18 +22,16 @@ impl MapBuilder for SimpleMapBuilder {
         self.starting_position.clone()
     }
 
+    fn get_snapshot_history(&self) -> Vec<Map> {
+        self.history.clone()
+    }
+
     fn build_map(&mut self) {
         self.rooms_and_corridors();
     }
 
-    fn spawn_entities(&mut self, ecs: &mut World) {
-        for room in self.rooms.iter().skip(1) {
-            spawner::spawn_room(ecs, room, self.depth);
-        }
-    }
-
-    fn get_snapshot_history(&self) -> Vec<Map> {
-        self.history.clone()
+    fn get_spawn_list(&self) -> &Vec<(usize, String)> {
+        &self.spawn_list
     }
 
     fn take_snapshot(&mut self) {
@@ -59,6 +53,7 @@ impl SimpleMapBuilder {
             depth: new_depth,
             rooms: Vec::new(),
             history: Vec::new(),
+            spawn_list: Vec::new(),
         }
     }
 
@@ -69,7 +64,7 @@ impl SimpleMapBuilder {
 
         let mut rng = RandomNumberGenerator::new();
 
-        for _i in 0..MAX_ROOMS {
+        for _ in 0..MAX_ROOMS {
             let w = rng.range(MIN_SIZE, MAX_SIZE);
             let h = rng.range(MIN_SIZE, MAX_SIZE);
             let x = rng.roll_dice(1, self.map.width - w - 1) - 1;
@@ -102,8 +97,8 @@ impl SimpleMapBuilder {
             }
         }
 
-        let stairs_position = self.rooms[self.rooms.len() - 1].center();
-        let stairs_idx = self.map.xy_idx(stairs_position.0, stairs_position.1);
+        let (stairs_x, stairs_y) = self.rooms[self.rooms.len() - 1].center();
+        let stairs_idx = self.map.xy_idx(stairs_x, stairs_y);
         self.map.tiles[stairs_idx] = TileType::DownStairs;
 
         let (start_x, start_y) = self.rooms[0].center();
@@ -111,5 +106,10 @@ impl SimpleMapBuilder {
             x: start_x,
             y: start_y,
         };
+
+        // Spawn some entities
+        for room in self.rooms.iter().skip(1) {
+            spawner::spawn_room(&self.map, &mut rng, room, self.depth, &mut self.spawn_list);
+        }
     }
 }

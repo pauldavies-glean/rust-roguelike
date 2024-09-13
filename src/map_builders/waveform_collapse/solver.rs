@@ -1,5 +1,4 @@
-use super::common::MapChunk;
-use crate::map::Map;
+use super::{Map, MapChunk};
 use std::collections::HashSet;
 
 pub struct Solver {
@@ -30,6 +29,55 @@ impl Solver {
             remaining,
             possible: true,
         }
+    }
+
+    fn chunk_idx(&self, x: usize, y: usize) -> usize {
+        ((y * self.chunks_x) + x) as usize
+    }
+
+    fn count_neighbors(&self, chunk_x: usize, chunk_y: usize) -> i32 {
+        let mut neighbors = 0;
+
+        if chunk_x > 0 {
+            let left_idx = self.chunk_idx(chunk_x - 1, chunk_y);
+            match self.chunks[left_idx] {
+                None => {}
+                Some(_) => {
+                    neighbors += 1;
+                }
+            }
+        }
+
+        if chunk_x < self.chunks_x - 1 {
+            let right_idx = self.chunk_idx(chunk_x + 1, chunk_y);
+            match self.chunks[right_idx] {
+                None => {}
+                Some(_) => {
+                    neighbors += 1;
+                }
+            }
+        }
+
+        if chunk_y > 0 {
+            let up_idx = self.chunk_idx(chunk_x, chunk_y - 1);
+            match self.chunks[up_idx] {
+                None => {}
+                Some(_) => {
+                    neighbors += 1;
+                }
+            }
+        }
+
+        if chunk_y < self.chunks_y - 1 {
+            let down_idx = self.chunk_idx(chunk_x, chunk_y + 1);
+            match self.chunks[down_idx] {
+                None => {}
+                Some(_) => {
+                    neighbors += 1;
+                }
+            }
+        }
+        neighbors
     }
 
     pub fn iteration(&mut self, map: &mut Map, rng: &mut super::RandomNumberGenerator) -> bool {
@@ -163,7 +211,7 @@ impl Solver {
                     rng.roll_dice(1, possible_options.len() as i32) - 1
                 };
 
-                self.chunks[chunk_index] = Some(new_chunk_idx as usize);
+                self.chunks[chunk_index] = Some(possible_options[new_chunk_idx as usize]);
                 let left_x = chunk_x as i32 * self.chunk_size as i32;
                 let right_x = (chunk_x as i32 + 1) * self.chunk_size as i32;
                 let top_y = chunk_y as i32 * self.chunk_size as i32;
@@ -173,7 +221,8 @@ impl Solver {
                 for y in top_y..bottom_y {
                     for x in left_x..right_x {
                         let mapidx = map.xy_idx(x, y);
-                        let tile = self.constraints[new_chunk_idx as usize].pattern[i];
+                        let tile =
+                            self.constraints[possible_options[new_chunk_idx as usize]].pattern[i];
                         map.tiles[mapidx] = tile;
                         i += 1;
                     }
@@ -182,54 +231,5 @@ impl Solver {
         }
 
         false
-    }
-
-    fn chunk_idx(&self, x: usize, y: usize) -> usize {
-        ((y * self.chunks_x) + x) as usize
-    }
-
-    fn count_neighbors(&self, chunk_x: usize, chunk_y: usize) -> i32 {
-        let mut neighbors = 0;
-
-        if chunk_x > 0 {
-            let left_idx = self.chunk_idx(chunk_x - 1, chunk_y);
-            match self.chunks[left_idx] {
-                None => {}
-                Some(_) => {
-                    neighbors += 1;
-                }
-            }
-        }
-
-        if chunk_x < self.chunks_x - 1 {
-            let right_idx = self.chunk_idx(chunk_x + 1, chunk_y);
-            match self.chunks[right_idx] {
-                None => {}
-                Some(_) => {
-                    neighbors += 1;
-                }
-            }
-        }
-
-        if chunk_y > 0 {
-            let up_idx = self.chunk_idx(chunk_x, chunk_y - 1);
-            match self.chunks[up_idx] {
-                None => {}
-                Some(_) => {
-                    neighbors += 1;
-                }
-            }
-        }
-
-        if chunk_y < self.chunks_y - 1 {
-            let down_idx = self.chunk_idx(chunk_x, chunk_y + 1);
-            match self.chunks[down_idx] {
-                None => {}
-                Some(_) => {
-                    neighbors += 1;
-                }
-            }
-        }
-        neighbors
     }
 }

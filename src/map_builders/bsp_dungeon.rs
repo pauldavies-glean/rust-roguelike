@@ -1,11 +1,7 @@
-use super::{common::apply_room_to_map, MapBuilder};
-use crate::{
-    components::Position,
-    map::{Map, TileType},
-    rect::Rect,
-    spawner, SHOW_MAPGEN_VISUALIZER,
+use super::{
+    apply_room_to_map, draw_corridor, spawner, Map, MapBuilder, Position, Rect, TileType,
+    SHOW_MAPGEN_VISUALIZER,
 };
-use bevy_ecs::prelude::*;
 use rltk::RandomNumberGenerator;
 
 pub struct BspDungeonBuilder {
@@ -15,6 +11,7 @@ pub struct BspDungeonBuilder {
     rooms: Vec<Rect>,
     history: Vec<Map>,
     rects: Vec<Rect>,
+    spawn_list: Vec<(usize, String)>,
 }
 
 impl MapBuilder for BspDungeonBuilder {
@@ -34,10 +31,8 @@ impl MapBuilder for BspDungeonBuilder {
         self.build();
     }
 
-    fn spawn_entities(&mut self, ecs: &mut World) {
-        for room in self.rooms.iter().skip(1) {
-            spawner::spawn_room(ecs, room, self.depth);
-        }
+    fn get_spawn_list(&self) -> &Vec<(usize, String)> {
+        &self.spawn_list
     }
 
     fn take_snapshot(&mut self) {
@@ -60,6 +55,7 @@ impl BspDungeonBuilder {
             rooms: Vec::new(),
             history: Vec::new(),
             rects: Vec::new(),
+            spawn_list: Vec::new(),
         }
     }
 
@@ -89,19 +85,7 @@ impl BspDungeonBuilder {
             n_rooms += 1;
         }
 
-        // Place the player
-        let (player_x, player_y) = self.rooms[0].center();
-        self.starting_position = Position {
-            x: player_x,
-            y: player_y,
-        };
-
-        // Don't forget the stairs
-        let stairs = self.rooms[self.rooms.len() - 1].center();
-        let stairs_idx = self.map.xy_idx(stairs.0, stairs.1);
-        self.map.tiles[stairs_idx] = TileType::DownStairs;
-
-        // This just makes things neater
+        // Now we sort the rooms
         self.rooms.sort_by(|a, b| a.x1.cmp(&b.x1));
 
         // Now we want corridors
@@ -114,8 +98,26 @@ impl BspDungeonBuilder {
                 next_room.x1 + (rng.roll_dice(1, i32::abs(next_room.x1 - next_room.x2)) - 1);
             let end_y =
                 next_room.y1 + (rng.roll_dice(1, i32::abs(next_room.y1 - next_room.y2)) - 1);
-            self.draw_corridor(start_x, start_y, end_x, end_y);
+            draw_corridor(&mut self.map, start_x, start_y, end_x, end_y);
             self.take_snapshot();
+        }
+
+        // Don't forget the stairs
+        let (stairs_x, stairs_y) = self.rooms[self.rooms.len() - 1].center();
+        let stairs_idx = self.map.xy_idx(stairs_x, stairs_y);
+        self.map.tiles[stairs_idx] = TileType::DownStairs;
+        self.take_snapshot();
+
+        // Set player start
+        let (start_x, start_y) = self.rooms[0].center();
+        self.starting_position = Position {
+            x: start_x,
+            y: start_y,
+        };
+
+        // Spawn some entities
+        for room in self.rooms.iter().skip(1) {
+            spawner::spawn_room(&self.map, &mut rng, room, self.depth, &mut self.spawn_list);
         }
     }
 
@@ -204,25 +206,5 @@ impl BspDungeonBuilder {
         }
 
         can_build
-    }
-
-    fn draw_corridor(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
-        let mut x = x1;
-        let mut y = y1;
-
-        while x != x2 || y != y2 {
-            if x < x2 {
-                x += 1;
-            } else if x > x2 {
-                x -= 1;
-            } else if y < y2 {
-                y += 1;
-            } else if y > y2 {
-                y -= 1;
-            }
-
-            let idx = self.map.xy_idx(x, y);
-            self.map.tiles[idx] = TileType::Floor;
-        }
     }
 }

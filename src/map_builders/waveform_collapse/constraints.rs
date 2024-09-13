@@ -1,7 +1,4 @@
-use super::{
-    common::{tile_idx_in_chunk, MapChunk},
-    Map, TileType,
-};
+use super::{tile_idx_in_chunk, Map, MapChunk, TileType};
 use std::collections::HashSet;
 
 pub fn build_patterns(

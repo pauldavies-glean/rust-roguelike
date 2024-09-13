@@ -27,7 +27,7 @@ use components::{
 };
 use damage::DamageEvent;
 use gamelog::GameLog;
-use map::{Map, MAPCOUNT, MAPHEIGHT, MAPWIDTH};
+use map::{Map, TileType, MAPCOUNT, MAPHEIGHT, MAPWIDTH};
 use rex_assets::RexAssets;
 use rltk::{
     main_loop, BError, GameState, RandomNumberGenerator, Rltk, RltkBuilder, VirtualKeyCode,

@@ -143,7 +143,7 @@ pub fn show_inventory(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, Opt
 
     let inventory = held_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity);
+        .filter(|(pack, _, _)| pack.owner == player_entity);
     let count = inventory.count();
 
     let mut y = (25 - (count / 2)) as i32;
@@ -155,7 +155,7 @@ pub fn show_inventory(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, Opt
     let mut j = 0;
     for (_pack, name, entity) in held_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity)
+        .filter(|(pack, _, _)| pack.owner == player_entity)
     {
         ctx.set(17, y, WHITE, BLACK, to_cp437('('));
         ctx.set(18, y, YELLOW, BLACK, 97 + j as FontCharType);
@@ -191,7 +191,7 @@ pub fn drop_menu_item(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, Opt
 
     let inventory = held_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity);
+        .filter(|(pack, _, _)| pack.owner == player_entity);
     let count = inventory.count();
 
     let mut y = (25 - (count / 2)) as i32;
@@ -203,7 +203,7 @@ pub fn drop_menu_item(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, Opt
     let mut j = 0;
     for (_pack, name, entity) in held_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity)
+        .filter(|(pack, _, _)| pack.owner == player_entity)
     {
         ctx.set(17, y, WHITE, BLACK, to_cp437('('));
         ctx.set(18, y, YELLOW, BLACK, 97 + j as FontCharType);
@@ -255,23 +255,20 @@ pub fn ranged_target(
     }
 
     // Draw mouse cursor
-    let mouse_pos = ctx.mouse_pos();
+    let (mouse_x, mouse_y) = ctx.mouse_pos();
     let mut valid_target = false;
-    for idx in available_cells.iter() {
-        if idx.x == mouse_pos.0 && idx.y == mouse_pos.1 {
+    for p in available_cells.iter() {
+        if p.x == mouse_x && p.y == mouse_y {
             valid_target = true;
         }
     }
     if valid_target {
-        ctx.set_bg(mouse_pos.0, mouse_pos.1, CYAN);
+        ctx.set_bg(mouse_x, mouse_y, CYAN);
         if ctx.left_click {
-            return (
-                ItemMenuResult::Selected,
-                Some(Point::new(mouse_pos.0, mouse_pos.1)),
-            );
+            return (ItemMenuResult::Selected, Some(Point::new(mouse_x, mouse_y)));
         }
     } else {
-        ctx.set_bg(mouse_pos.0, mouse_pos.1, RED);
+        ctx.set_bg(mouse_x, mouse_y, RED);
         if ctx.left_click {
             return (ItemMenuResult::Cancel, None);
         }
@@ -381,7 +378,7 @@ pub fn remove_item_menu(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, O
 
     let inventory = equipped_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity);
+        .filter(|(eq, _, _)| eq.owner == player_entity);
     let count = inventory.count();
 
     let mut y = (25 - (count / 2)) as i32;
@@ -393,7 +390,7 @@ pub fn remove_item_menu(world: &mut World, ctx: &mut Rltk) -> (ItemMenuResult, O
     let mut j = 0;
     for (_pack, name, entity) in equipped_items
         .iter(world)
-        .filter(|item| item.0.owner == player_entity)
+        .filter(|(eq, _, _)| eq.owner == player_entity)
     {
         ctx.set(17, y, WHITE, BLACK, to_cp437('('));
         ctx.set(18, y, YELLOW, BLACK, 97 + j as FontCharType);

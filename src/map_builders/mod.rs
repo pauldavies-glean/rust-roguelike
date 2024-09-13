@@ -5,29 +5,38 @@ mod common;
 mod dla;
 mod drunkard;
 mod maze;
+mod prefab_builder;
 mod simple_map;
 mod voronoi;
 mod waveform_collapse;
 
-use crate::{components::Position, map::Map};
+use super::{rect::Rect, spawner, Map, Position, TileType, SHOW_MAPGEN_VISUALIZER};
 use bevy_ecs::prelude::*;
 use bsp_dungeon::BspDungeonBuilder;
 use bsp_interior::BspInteriorBuilder;
 use cellular_automata::CellularAutomataBuilder;
+use common::*;
 use dla::DLABuilder;
 use drunkard::DrunkardsWalkBuilder;
 use maze::MazeBuilder;
+use prefab_builder::PrefabBuilder;
 use simple_map::SimpleMapBuilder;
 use voronoi::VoronoiCellBuilder;
 use waveform_collapse::WaveformCollapseBuilder;
 
 pub trait MapBuilder {
     fn build_map(&mut self);
-    fn spawn_entities(&mut self, ecs: &mut World);
     fn get_map(&self) -> Map;
     fn get_starting_position(&self) -> Position;
     fn get_snapshot_history(&self) -> Vec<Map>;
     fn take_snapshot(&mut self);
+    fn get_spawn_list(&self) -> &Vec<(usize, String)>;
+
+    fn spawn_entities(&mut self, ecs: &mut World) {
+        for (spawn_idx, spawn_name) in self.get_spawn_list().iter() {
+            spawner::spawn_entity(ecs, &(spawn_idx, spawn_name));
+        }
+    }
 }
 
 pub fn random_builder(new_depth: i32) -> Box<dyn MapBuilder> {
@@ -50,13 +59,26 @@ pub fn random_builder(new_depth: i32) -> Box<dyn MapBuilder> {
         13 => Box::new(DLABuilder::insectoid(new_depth)),
         14 => Box::new(VoronoiCellBuilder::pythagoras(new_depth)),
         15 => Box::new(VoronoiCellBuilder::manhattan(new_depth)),
-        16 => Box::new(WaveformCollapseBuilder::test_map(new_depth)),
+        16 => Box::new(PrefabBuilder::constant(
+            new_depth,
+            prefab_builder::prefab_levels::WFC_POPULATED,
+        )),
         _ => Box::new(SimpleMapBuilder::new(new_depth)),
     };
 
     if rng.roll_dice(1, 3) == 1 {
         result = Box::new(WaveformCollapseBuilder::derived_map(new_depth, result));
     }
+
+    if rng.roll_dice(1, 20) == 1 {
+        result = Box::new(PrefabBuilder::sectional(
+            new_depth,
+            prefab_builder::prefab_sections::UNDERGROUND_FORT,
+            result,
+        ));
+    }
+
+    result = Box::new(PrefabBuilder::vaults(new_depth, result));
 
     result
 }

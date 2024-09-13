@@ -1,13 +1,7 @@
 use super::{
-    common::{generate_voronoi_spawn_regions, remove_unreachable_areas_returning_most_distant},
-    MapBuilder,
+    generate_voronoi_spawn_regions, remove_unreachable_areas_returning_most_distant, spawner, Map,
+    MapBuilder, Position, TileType, SHOW_MAPGEN_VISUALIZER,
 };
-use crate::{
-    components::Position,
-    map::{Map, TileType},
-    spawner, SHOW_MAPGEN_VISUALIZER,
-};
-use bevy_ecs::prelude::*;
 use rltk::RandomNumberGenerator;
 use std::collections::HashMap;
 
@@ -17,6 +11,7 @@ pub struct MazeBuilder {
     depth: i32,
     history: Vec<Map>,
     noise_areas: HashMap<i32, Vec<usize>>,
+    spawn_list: Vec<(usize, String)>,
 }
 
 impl MapBuilder for MazeBuilder {
@@ -36,10 +31,8 @@ impl MapBuilder for MazeBuilder {
         self.build();
     }
 
-    fn spawn_entities(&mut self, ecs: &mut World) {
-        for area in self.noise_areas.iter() {
-            spawner::spawn_region(ecs, area.1, self.depth);
-        }
+    fn get_spawn_list(&self) -> &Vec<(usize, String)> {
+        &self.spawn_list
     }
 
     fn take_snapshot(&mut self) {
@@ -61,13 +54,14 @@ impl MazeBuilder {
             depth: new_depth,
             history: Vec::new(),
             noise_areas: HashMap::new(),
+            spawn_list: Vec::new(),
         }
     }
 
     fn build(&mut self) {
         let mut rng = RandomNumberGenerator::new();
 
-        // Make the maze!
+        // Maze gen
         let mut maze = Grid::new(
             (self.map.width / 2) - 2,
             (self.map.height / 2) - 2,
@@ -75,7 +69,7 @@ impl MazeBuilder {
         );
         maze.generate_maze(self);
 
-        // Choose an arbitrary starting point
+        // Find a starting point; start at the middle and walk left until we find an open tile
         self.starting_position = Position { x: 2, y: 2 };
         let start_idx = self
             .map
@@ -92,6 +86,11 @@ impl MazeBuilder {
 
         // Now we build a noise map for use in spawning entities later
         self.noise_areas = generate_voronoi_spawn_regions(&self.map, &mut rng);
+
+        // Spawn the entities
+        for (_, area) in self.noise_areas.iter() {
+            spawner::spawn_region(&mut rng, area, self.depth, &mut self.spawn_list);
+        }
     }
 }
 
@@ -223,11 +222,14 @@ impl<'a> Grid<'a> {
                 Some(next) => {
                     self.cells[next].visited = true;
                     self.backtrace.push(self.current);
-                    unsafe {
-                        let next_cell: *mut Cell = &mut self.cells[next];
-                        let current_cell = &mut self.cells[self.current];
-                        current_cell.remove_walls(&mut *next_cell);
-                    }
+                    //   __lower_part__      __higher_part_
+                    //   /            \      /            \
+                    // --------cell1------ | cell2-----------
+                    let (lower_part, higher_part) =
+                        self.cells.split_at_mut(std::cmp::max(self.current, next));
+                    let cell1 = &mut lower_part[std::cmp::min(self.current, next)];
+                    let cell2 = &mut higher_part[0];
+                    cell1.remove_walls(cell2);
                     self.current = next;
                 }
                 None => {

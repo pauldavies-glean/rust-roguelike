@@ -1,16 +1,7 @@
 use super::{
-    common::{
-        generate_voronoi_spawn_regions, paint, remove_unreachable_areas_returning_most_distant,
-        Symmetry,
-    },
-    MapBuilder,
+    generate_voronoi_spawn_regions, paint, remove_unreachable_areas_returning_most_distant,
+    spawner, Map, MapBuilder, Position, Symmetry, TileType, SHOW_MAPGEN_VISUALIZER,
 };
-use crate::{
-    components::Position,
-    map::{Map, TileType},
-    spawner, SHOW_MAPGEN_VISUALIZER,
-};
-use bevy_ecs::prelude::*;
 use rltk::RandomNumberGenerator;
 use std::collections::HashMap;
 
@@ -35,6 +26,7 @@ pub struct DrunkardsWalkBuilder {
     history: Vec<Map>,
     noise_areas: HashMap<i32, Vec<usize>>,
     settings: DrunkardSettings,
+    spawn_list: Vec<(usize, String)>,
 }
 
 impl MapBuilder for DrunkardsWalkBuilder {
@@ -54,10 +46,8 @@ impl MapBuilder for DrunkardsWalkBuilder {
         self.build();
     }
 
-    fn spawn_entities(&mut self, ecs: &mut World) {
-        for area in self.noise_areas.iter() {
-            spawner::spawn_region(ecs, area.1, self.depth);
-        }
+    fn get_spawn_list(&self) -> &Vec<(usize, String)> {
+        &self.spawn_list
     }
 
     fn take_snapshot(&mut self) {
@@ -86,6 +76,7 @@ impl DrunkardsWalkBuilder {
                 brush_size: 1,
                 symmetry: Symmetry::None,
             },
+            spawn_list: Vec::new(),
         }
     }
 
@@ -103,6 +94,7 @@ impl DrunkardsWalkBuilder {
                 brush_size: 1,
                 symmetry: Symmetry::None,
             },
+            spawn_list: Vec::new(),
         }
     }
 
@@ -120,8 +112,10 @@ impl DrunkardsWalkBuilder {
                 brush_size: 1,
                 symmetry: Symmetry::None,
             },
+            spawn_list: Vec::new(),
         }
     }
+
     pub fn fat_passages(new_depth: i32) -> DrunkardsWalkBuilder {
         DrunkardsWalkBuilder {
             map: Map::new(new_depth),
@@ -136,6 +130,7 @@ impl DrunkardsWalkBuilder {
                 brush_size: 2,
                 symmetry: Symmetry::None,
             },
+            spawn_list: Vec::new(),
         }
     }
 
@@ -153,6 +148,7 @@ impl DrunkardsWalkBuilder {
                 brush_size: 1,
                 symmetry: Symmetry::Both,
             },
+            spawn_list: Vec::new(),
         }
     }
 
@@ -179,7 +175,6 @@ impl DrunkardsWalkBuilder {
             .count();
         let mut digger_count = 0;
         let mut active_digger_count = 0;
-
         while floor_tile_count < desired_floor_tiles {
             let mut did_something = false;
             let mut drunk_x;
@@ -274,5 +269,10 @@ impl DrunkardsWalkBuilder {
 
         // Now we build a noise map for use in spawning entities later
         self.noise_areas = generate_voronoi_spawn_regions(&self.map, &mut rng);
+
+        // Spawn the entities
+        for (_, area) in self.noise_areas.iter() {
+            spawner::spawn_region(&mut rng, area, self.depth, &mut self.spawn_list);
+        }
     }
 }

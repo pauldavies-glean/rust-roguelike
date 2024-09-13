@@ -1,16 +1,9 @@
-use std::collections::HashMap;
-
 use super::{
-    common::{generate_voronoi_spawn_regions, remove_unreachable_areas_returning_most_distant},
-    MapBuilder,
+    generate_voronoi_spawn_regions, remove_unreachable_areas_returning_most_distant, spawner, Map,
+    MapBuilder, Position, TileType, SHOW_MAPGEN_VISUALIZER,
 };
-use crate::{
-    components::Position,
-    map::{Map, TileType},
-    spawner, SHOW_MAPGEN_VISUALIZER,
-};
-use bevy_ecs::prelude::*;
 use rltk::RandomNumberGenerator;
+use std::collections::HashMap;
 
 pub struct CellularAutomataBuilder {
     map: Map,
@@ -18,6 +11,7 @@ pub struct CellularAutomataBuilder {
     depth: i32,
     history: Vec<Map>,
     noise_areas: HashMap<i32, Vec<usize>>,
+    spawn_list: Vec<(usize, String)>,
 }
 
 impl MapBuilder for CellularAutomataBuilder {
@@ -34,6 +28,37 @@ impl MapBuilder for CellularAutomataBuilder {
     }
 
     fn build_map(&mut self) {
+        self.build();
+    }
+
+    fn get_spawn_list(&self) -> &Vec<(usize, String)> {
+        &self.spawn_list
+    }
+
+    fn take_snapshot(&mut self) {
+        if SHOW_MAPGEN_VISUALIZER {
+            let mut snapshot = self.map.clone();
+            for v in snapshot.revealed_tiles.iter_mut() {
+                *v = true;
+            }
+            self.history.push(snapshot);
+        }
+    }
+}
+
+impl CellularAutomataBuilder {
+    pub fn new(new_depth: i32) -> CellularAutomataBuilder {
+        CellularAutomataBuilder {
+            map: Map::new(new_depth),
+            starting_position: Position { x: 0, y: 0 },
+            depth: new_depth,
+            history: Vec::new(),
+            noise_areas: HashMap::new(),
+            spawn_list: Vec::new(),
+        }
+    }
+
+    fn build(&mut self) {
         let mut rng = RandomNumberGenerator::new();
 
         // First we completely randomize the map, setting 55% of it to be floor.
@@ -109,43 +134,22 @@ impl MapBuilder for CellularAutomataBuilder {
                 .map
                 .xy_idx(self.starting_position.x, self.starting_position.y);
         }
+        self.take_snapshot();
 
         // Find all tiles we can reach from the starting point
         let exit_tile = remove_unreachable_areas_returning_most_distant(&mut self.map, start_idx);
         self.take_snapshot();
 
+        // Place the stairs
         self.map.tiles[exit_tile] = TileType::DownStairs;
         self.take_snapshot();
 
         // Now we build a noise map for use in spawning entities later
         self.noise_areas = generate_voronoi_spawn_regions(&self.map, &mut rng);
-    }
 
-    fn spawn_entities(&mut self, ecs: &mut World) {
+        // Spawn the entities
         for area in self.noise_areas.iter() {
-            spawner::spawn_region(ecs, area.1, self.depth);
-        }
-    }
-
-    fn take_snapshot(&mut self) {
-        if SHOW_MAPGEN_VISUALIZER {
-            let mut snapshot = self.map.clone();
-            for v in snapshot.revealed_tiles.iter_mut() {
-                *v = true;
-            }
-            self.history.push(snapshot);
-        }
-    }
-}
-
-impl CellularAutomataBuilder {
-    pub fn new(new_depth: i32) -> CellularAutomataBuilder {
-        CellularAutomataBuilder {
-            map: Map::new(new_depth),
-            starting_position: Position { x: 0, y: 0 },
-            depth: new_depth,
-            history: Vec::new(),
-            noise_areas: HashMap::new(),
+            spawner::spawn_region(&mut rng, area.1, self.depth, &mut self.spawn_list);
         }
     }
 }
