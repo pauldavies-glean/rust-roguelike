@@ -80,15 +80,15 @@ impl WaveformCollapseBuilder {
 
         const CHUNK_SIZE: i32 = 8;
 
-        let prebuilder = &mut self.derive_from.as_mut().unwrap();
-        prebuilder.build_map();
-        self.map = prebuilder.get_map();
+        let prev_builder = &mut self.derive_from.as_mut().unwrap();
+        prev_builder.build_map();
+        self.map = prev_builder.get_map();
         for t in self.map.tiles.iter_mut() {
             if *t == TileType::DownStairs {
                 *t = TileType::Floor;
             }
         }
-        self.take_snapshot();
+        self.history = prev_builder.get_snapshot_history();
 
         let patterns = build_patterns(&self.map, CHUNK_SIZE, true, true);
         let constraints = patterns_to_constraints(patterns, CHUNK_SIZE);

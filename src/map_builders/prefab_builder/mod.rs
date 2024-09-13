@@ -335,7 +335,7 @@ impl PrefabBuilder {
                 self.spawn_list.push((idx, e.1.to_string()))
             }
         }
-        self.take_snapshot();
+        self.history = prev_builder.get_snapshot_history();
     }
 
     fn apply_room_vaults(&mut self) {
